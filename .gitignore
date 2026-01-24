@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Story files (can be large, users provide their own)
+*.z3
+*.z4
+*.z5
+*.z6
+*.z7
+*.z8
+
+# Save files
+*.sav
