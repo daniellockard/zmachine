@@ -194,4 +194,57 @@ export class Stack {
   clear(): void {
     this.frames.length = 0;
   }
+
+  /**
+   * Serialize stack for undo (lightweight format)
+   */
+  serialize(): { data: number[]; framePointers: number[] } {
+    const snapshot = this.snapshot();
+    const data: number[] = [];
+    const framePointers: number[] = [];
+    
+    for (const frame of snapshot.frames) {
+      framePointers.push(data.length);
+      data.push(frame.returnPC);
+      data.push(frame.storeVariable ?? -1);
+      data.push(frame.argumentCount);
+      data.push(frame.locals.length);
+      data.push(...frame.locals);
+      data.push(frame.evalStack.length);
+      data.push(...frame.evalStack);
+    }
+    
+    return { data, framePointers };
+  }
+
+  /**
+   * Deserialize stack from undo format
+   */
+  deserialize(serialized: { data: number[]; framePointers: number[] }): void {
+    const { data, framePointers } = serialized;
+    this.frames.length = 0;
+    
+    for (const ptr of framePointers) {
+      let i = ptr;
+      const returnPC = data[i++];
+      const storeVar = data[i++];
+      const storeVariable = storeVar === -1 ? undefined : storeVar;
+      const argumentCount = data[i++];
+      const localCount = data[i++];
+      const locals: number[] = [];
+      for (let j = 0; j < localCount; j++) {
+        locals.push(data[i++]);
+      }
+      const stackLen = data[i++];
+      const evalStack: number[] = [];
+      for (let j = 0; j < stackLen; j++) {
+        evalStack.push(data[i++]);
+      }
+      
+      const frame = new StackFrame(returnPC, storeVariable, localCount, argumentCount);
+      frame.initializeLocals(locals);
+      frame.restoreStack(evalStack);
+      this.frames.push(frame);
+    }
+  }
 }

@@ -22,6 +22,11 @@ const fileInputEl = document.getElementById('file-input') as HTMLInputElement;
 let machine: ZMachine | null = null;
 let pendingInputResolve: ((result: ReadLineResult) => void) | null = null;
 
+// Command history
+const commandHistory: string[] = [];
+let historyIndex = -1;
+const MAX_HISTORY = 100;
+
 /**
  * Create an IO adapter that bridges the Z-machine to the DOM
  */
@@ -96,9 +101,42 @@ async function startGame(zm: ZMachine): Promise<void> {
  */
 function setupInputHandler(): void {
   inputEl.addEventListener('keydown', async (e) => {
+    // Command history navigation
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
+        historyIndex++;
+        inputEl.value = commandHistory[commandHistory.length - 1 - historyIndex];
+        // Move cursor to end
+        setTimeout(() => inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length), 0);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        historyIndex--;
+        inputEl.value = commandHistory[commandHistory.length - 1 - historyIndex];
+      } else if (historyIndex === 0) {
+        historyIndex = -1;
+        inputEl.value = '';
+      }
+      return;
+    }
+
     if (e.key === 'Enter' && machine) {
       const text = inputEl.value.trim();
       inputEl.value = '';
+      historyIndex = -1;
+
+      // Add to history (avoid duplicates)
+      if (text && (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== text)) {
+        commandHistory.push(text);
+        if (commandHistory.length > MAX_HISTORY) {
+          commandHistory.shift();
+        }
+      }
 
       // Echo input
       const echo = document.createElement('span');

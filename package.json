@@ -1,13 +1,31 @@
 {
-  "name": "zmachine",
+  "name": "@dlockard/zmachine",
   "version": "0.1.0",
-  "description": "A Z-machine emulator written from scratch in TypeScript",
+  "description": "A Z-machine emulator written from scratch in TypeScript. Zero dependencies. Run Infocom text adventures in Node.js or the browser.",
   "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./web": {
+      "types": "./dist/web/WebIOAdapter.d.ts",
+      "import": "./dist/web/WebIOAdapter.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc",
     "build:web": "vite build",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -20,11 +38,26 @@
     "z-machine",
     "infocom",
     "interactive-fiction",
+    "text-adventure",
     "emulator",
-    "interpreter"
+    "interpreter",
+    "zork",
+    "if",
+    "parser"
   ],
-  "author": "",
+  "author": "Daniel Lockard",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlockard/zmachine"
+  },
+  "bugs": {
+    "url": "https://github.com/dlockard/zmachine/issues"
+  },
+  "homepage": "https://github.com/dlockard/zmachine#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "typescript": "^5.3.0",

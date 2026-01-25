@@ -99,6 +99,13 @@ export class Executor {
     this.registerHandlers();
   }
 
+  /** Undo state for save_undo/restore_undo */
+  private undoState: {
+    memory: Uint8Array;
+    stack: { data: number[]; framePointers: number[] };
+    pc: ByteAddress;
+  } | null = null;
+
   /**
    * Execute a decoded instruction
    */
@@ -344,6 +351,15 @@ export class Executor {
     this.handlers.set('copy_table', this.op_copy_table.bind(this));
     this.handlers.set('print_table', this.op_print_table.bind(this));
     this.handlers.set('check_arg_count', this.op_check_arg_count.bind(this));
+
+    // Extended opcodes (V5+)
+    this.handlers.set('log_shift', this.op_log_shift.bind(this));
+    this.handlers.set('art_shift', this.op_art_shift.bind(this));
+    this.handlers.set('set_font', this.op_set_font.bind(this));
+    this.handlers.set('save_undo', this.op_save_undo.bind(this));
+    this.handlers.set('restore_undo', this.op_restore_undo.bind(this));
+    this.handlers.set('print_unicode', this.op_print_unicode.bind(this));
+    this.handlers.set('check_unicode', this.op_check_unicode.bind(this));
   }
 
   // ============================================
@@ -1208,5 +1224,128 @@ export class Executor {
     const argNum = this.getOperandValue(ins.operands[0]);
     const argCount = this.stack.currentFrame.argumentCount;
     return this.branch(ins, argNum <= argCount);
+  }
+
+  // ============================================
+  // Extended Opcode Implementations (V5+)
+  // ============================================
+
+  private op_log_shift(ins: DecodedInstruction): ExecutionResult {
+    const number = this.getOperandValue(ins.operands[0]);
+    const places = toSigned16(this.getOperandValue(ins.operands[1]));
+    
+    let result: number;
+    if (places >= 0) {
+      // Left shift (logical)
+      result = (number << places) & 0xFFFF;
+    } else {
+      // Right shift (logical - zero fill)
+      result = (number >>> -places) & 0xFFFF;
+    }
+    
+    this.storeResult(ins, result);
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_art_shift(ins: DecodedInstruction): ExecutionResult {
+    const number = toSigned16(this.getOperandValue(ins.operands[0]));
+    const places = toSigned16(this.getOperandValue(ins.operands[1]));
+    
+    let result: number;
+    if (places >= 0) {
+      // Left shift (arithmetic = same as logical)
+      result = (number << places) & 0xFFFF;
+    } else {
+      // Right shift (arithmetic - sign extend)
+      result = (number >> -places) & 0xFFFF;
+    }
+    
+    this.storeResult(ins, result);
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_set_font(ins: DecodedInstruction): ExecutionResult {
+    const font = this.getOperandValue(ins.operands[0]);
+    
+    // Only fonts 1 (normal) and 4 (fixed-pitch) are typically supported
+    // Return previous font, or 0 if font change failed
+    if (font === 0) {
+      // Query current font
+      this.storeResult(ins, 1); // Always normal
+    } else if (font === 1 || font === 4) {
+      this.storeResult(ins, 1); // Was normal, now font
+    } else {
+      this.storeResult(ins, 0); // Font not available
+    }
+    
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_save_undo(ins: DecodedInstruction): ExecutionResult {
+    // Save current state for undo
+    const dynamicEnd = this.header.staticMemoryBase;
+    const memorySnapshot = new Uint8Array(dynamicEnd);
+    for (let i = 0; i < dynamicEnd; i++) {
+      memorySnapshot[i] = this.memory.readByte(i);
+    }
+    
+    // Save stack state (simplified - store raw data)
+    const stackSnapshot = this.stack.serialize();
+    
+    this.undoState = {
+      memory: memorySnapshot,
+      stack: stackSnapshot,
+      pc: ins.address + ins.length,
+    };
+    
+    // Return 1 for success (returning normally)
+    this.storeResult(ins, 1);
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_restore_undo(ins: DecodedInstruction): ExecutionResult {
+    if (!this.undoState) {
+      // No undo state available
+      this.storeResult(ins, 0);
+      return { nextPC: (ins.address + ins.length) };
+    }
+    
+    // Restore memory
+    for (let i = 0; i < this.undoState.memory.length; i++) {
+      this.memory.writeByte(i, this.undoState.memory[i]);
+    }
+    
+    // Restore stack
+    this.stack.deserialize(this.undoState.stack);
+    
+    // Return 2 to indicate successful restore
+    // (distinguished from save_undo which returns 1)
+    this.storeResult(ins, 2);
+    
+    // Jump to saved PC
+    return { nextPC: this.undoState.pc };
+  }
+
+  private op_print_unicode(ins: DecodedInstruction): ExecutionResult {
+    const charCode = this.getOperandValue(ins.operands[0]);
+    this.io.print(String.fromCodePoint(charCode));
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_check_unicode(ins: DecodedInstruction): ExecutionResult {
+    const charCode = this.getOperandValue(ins.operands[0]);
+    
+    // Bits: 0 = can print, 1 = can read
+    // We support printing all Unicode but reading only ASCII
+    let result = 0;
+    if (charCode >= 0 && charCode <= 0x10FFFF) {
+      result |= 1; // Can print
+    }
+    if (charCode >= 32 && charCode <= 126) {
+      result |= 2; // Can read (ASCII)
+    }
+    
+    this.storeResult(ins, result);
+    return { nextPC: (ins.address + ins.length) };
   }
 }

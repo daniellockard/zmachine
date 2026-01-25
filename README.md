@@ -1,114 +1,213 @@
 # Z-Machine Emulator
 
-A Z-machine emulator written from scratch in TypeScript. Runs classic Infocom text adventure games (.z3, .z5, .z8 files) in the browser.
+A TypeScript implementation of the Z-machine virtual machine for running Infocom-style text adventure games.
+
+[![npm version](https://badge.fury.io/js/@dlockard%2Fzmachine.svg)](https://www.npmjs.com/package/@dlockard/zmachine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- **Zero runtime dependencies** — Core emulator uses only built-in browser APIs
-- **TypeScript** — Full type safety throughout
-- **Test-driven** — Comprehensive unit tests with Vitest
-- **Web-first** — Designed for browser deployment
+- 🎮 **Runs Zork** - Full V3 support for classic Infocom games
+- 🚀 **Zero Dependencies** - Pure TypeScript, no runtime dependencies in core
+- 🌐 **Universal** - Works in Node.js and browsers
+- 📦 **Tree-shakeable** - Import only what you need
+- 🔧 **Extensible** - Implement your own I/O adapter for any platform
+- ✅ **Well-tested** - 380+ unit tests
 
-## Z-Machine Versions
+## Installation
 
-| Version | Status | Games |
-|---------|--------|-------|
-| V3 | 🎯 Target | Zork I-III, Hitchhiker's Guide, most Infocom classics |
-| V5 | Planned | Later Infocom, modern Inform games |
-| V8 | Planned | Large Inform games |
-| V1-2, V4 | Skipped | Rare/transitional versions |
-| V6 | Later | Graphical games (requires graphics support) |
+```bash
+npm install @dlockard/zmachine
+```
 
 ## Quick Start
 
+### Node.js
+
+```typescript
+import { ZMachine, IOAdapter } from '@dlockard/zmachine';
+import { readFileSync } from 'fs';
+
+// Implement your I/O adapter
+class ConsoleIO implements IOAdapter {
+  print(text: string) { process.stdout.write(text); }
+  newLine() { console.log(); }
+  // ... implement other methods
+}
+
+// Load and run a story
+const storyData = readFileSync('zork1.z3');
+const io = new ConsoleIO();
+const zm = ZMachine.load(storyData, io);
+
+await zm.run();
+```
+
+### Browser
+
+```typescript
+import { ZMachine, WebIOAdapter } from '@dlockard/zmachine';
+
+// Set up DOM elements
+const output = document.getElementById('output');
+const input = document.getElementById('input');
+
+// Create I/O adapter
+const io = new WebIOAdapter({
+  outputElement: output,
+  inputElement: input,
+});
+
+// Load story file
+const response = await fetch('zork1.z3');
+const storyData = await response.arrayBuffer();
+
+// Create and run machine
+const zm = ZMachine.load(storyData, io);
+io.initialize(zm.version);
+await zm.run();
+```
+
+## Web Demo
+
+Run the included web UI for playing games in your browser:
+
 ```bash
-# Install dependencies
+npm run dev:web
+```
+
+Then open http://localhost:8080 and drag-and-drop a .z3 story file.
+
+## I/O Adapter Interface
+
+Implement `IOAdapter` to connect the Z-machine to your platform:
+
+```typescript
+interface IOAdapter {
+  // Text output
+  print(text: string): void;
+  newLine(): void;
+  
+  // Input (async)
+  readLine(maxLength: number, timeout?: number): Promise<ReadLineResult>;
+  readChar(timeout?: number): Promise<number>;
+  
+  // Screen
+  showStatusLine(location: string, score: number, turns: number, isTime: boolean): void;
+  splitWindow(lines: number): void;
+  setWindow(window: number): void;
+  eraseWindow(window: number): void;
+  
+  // Save/restore
+  save(data: Uint8Array): Promise<boolean>;
+  restore(): Promise<Uint8Array | null>;
+  
+  // Game control
+  quit(): void;
+  restart(): void;
+}
+```
+
+## API Reference
+
+### ZMachine
+
+The main class for running Z-machine games.
+
+```typescript
+// Load a story file
+const zm = ZMachine.load(storyData: ArrayBuffer, io: IOAdapter);
+
+// Run until halted or waiting for input
+await zm.run();
+
+// Access game state
+zm.version      // Z-machine version (1-8)
+zm.state        // RunState: 'stopped' | 'running' | 'waiting' | 'halted'
+zm.memory       // Direct memory access
+zm.header       // Header fields
+
+// Utilities
+zm.getObjectName(objectNum)   // Get object's short name
+zm.printText(address)         // Decode text at address
+zm.lookupWord(word)           // Look up word in dictionary
+```
+
+### Memory
+
+Low-level memory access for tools and debugging:
+
+```typescript
+const value = zm.memory.readWord(address);   // Read 16-bit word
+zm.memory.writeByte(address, value);         // Write 8-bit byte
+```
+
+### Text Encoding/Decoding
+
+```typescript
+import { ZCharDecoder, encodeText, zsciiToUnicode } from '@dlockard/zmachine';
+
+// Decode Z-characters to string
+const decoder = new ZCharDecoder(memory, version, abbreviationsAddr);
+const { text, bytesRead } = decoder.decode(address);
+
+// Encode string to Z-characters (for dictionary lookup)
+const encoded = encodeText('zork', version);
+```
+
+## Supported Versions
+
+| Version | Support | Notes |
+|---------|---------|-------|
+| V3 | ✅ Full | Zork I-III, Planetfall, etc. |
+| V4 | 🔶 Partial | Most opcodes implemented |
+| V5 | 🔶 Partial | Extended opcodes, undo support |
+| V6 | ❌ | Graphics/mouse not supported |
+| V7-8 | 🔶 Partial | Same as V5 |
+
+## Building
+
+```bash
 npm install
-
-# Run tests
-npm test
-
-# Watch mode for development
-npm run test:watch
-
-# Build
-npm run build
+npm run build      # Compile TypeScript
+npm test           # Run tests
+npm run dev:web    # Start web dev server
 ```
 
 ## Project Structure
 
 ```
 src/
-├── core/                    # Zero-dependency Z-machine core
-│   ├── memory/              # Memory, header, address utilities
-│   ├── cpu/                 # Stack frames, call stack
-│   ├── instructions/        # Decoder, opcode tables
-│   ├── text/                # Z-character encoding/decoding
-│   ├── objects/             # Object table, properties, attributes
-│   └── dictionary/          # Dictionary lookup, tokenization
-├── io/                      # I/O abstraction layer
-└── web/                     # Browser implementation
+├── core/           # Zero-dependency core
+│   ├── cpu/        # Stack and call frames
+│   ├── dictionary/ # Word lookup and tokenization
+│   ├── execution/  # Opcode execution engine
+│   ├── instructions/ # Opcode definitions and decoder
+│   ├── memory/     # Memory and header access
+│   ├── objects/    # Object tree and properties
+│   ├── text/       # ZSCII and Z-character encoding
+│   ├── variables/  # Variable access (locals, globals, stack)
+│   └── ZMachine.ts # Main VM class
+├── io/             # I/O adapter interfaces
+├── web/            # Browser-based player
+└── index.ts        # Public API exports
 ```
 
 ## Testing with Story Files
 
-Story files (`.z1`–`.z8`) are copyrighted and not included in this repository.
-
-### Obtaining Test Files
+Story files (.z3, .z5, etc.) are copyrighted. Obtain them legally:
 
 - **Commercial**: [GOG.com](https://www.gog.com) sells Infocom collections
-- **Free**: [IF Archive](https://ifarchive.org/) has free Inform games and test suites
+- **Free**: [IF Archive](https://ifarchive.org/) has free Inform games
 
-### Test File Organization
-
-Place story files in a `roms/` folder (gitignored):
-
-```
-roms/
-├── zork1-r119-s880429.z3    # V3 test
-├── trinity-r15-s870628.z4   # V4 test
-├── beyondzork-r57-s871221.z5 # V5 test
-└── README.md                # Documentation
-```
-
-File naming: `gamename-rXX-sYYMMDD.zN`
-- `rXX` = Release number
-- `sYYMMDD` = Serial number (compile date)
-- `zN` = Z-machine version
-
-### Recommended Test Files
-
-| Version | Recommended | Why |
-|---------|-------------|-----|
-| V3 | zork1-r119-s880429.z3 | Classic, well-documented |
-| V3 | minizork-r34-s871124.z3 | Smaller, faster iteration |
-| V5 | sherlock-r4-s880324.z5 | Good V5 feature coverage |
-
-## Development
-
-See [PLAN.md](PLAN.md) for the implementation roadmap.
-
-### Key Principles
-
-1. **No runtime dependencies** in `src/core/`
-2. **Big-endian awareness** — Use `DataView` with explicit endianness
-3. **Test everything** — Each module has corresponding `.test.ts` files
-4. **Type safety** — No `any` types unless absolutely necessary
-
-### Running Tests
-
-```bash
-npm test              # Run once
-npm run test:watch    # Watch mode
-npm run test:coverage # With coverage report
-```
+Place story files in a `roms/` folder (gitignored).
 
 ## Resources
 
-- [Z-Machine Standards Document v1.1](https://www.inform-fiction.org/zmachine/standards/z1point1/)
+- [Z-Machine Specification v1.1](https://www.inform-fiction.org/zmachine/standards/z1point1/)
 - [Quetzal Save Format](http://inform-fiction.org/zmachine/standards/quetzal/)
 - [IF Archive](https://ifarchive.org/)
 
 ## License
 
-MIT
+MIT © Daniel Lockard

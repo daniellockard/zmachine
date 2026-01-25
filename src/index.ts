@@ -73,3 +73,7 @@ export { Properties, PropertyInfo } from './core/objects/Properties';
 // Dictionary (for tools)
 export { Dictionary, DictionaryEntry } from './core/dictionary/Dictionary';
 export { Tokenizer, Token } from './core/dictionary/Tokenizer';
+
+// Web adapter (for browser usage)
+export { WebIOAdapter, WebIOConfig } from './web/WebIOAdapter';
+export { ZMachineRunner, RunnerState, RunnerConfig } from './web/ZMachineRunner';
