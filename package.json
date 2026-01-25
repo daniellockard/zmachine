@@ -7,11 +7,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "build:web": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:web": "vite --config vite.config.ts"
   },
   "keywords": [
     "zmachine",

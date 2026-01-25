@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Z-Machine Emulator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header / Status Line -->
+    <header id="status-line" class="status-line">
+      <span class="location">Welcome to Z-Machine</span>
+      <span class="score"></span>
+    </header>
+
+    <!-- Main Game Output -->
+    <main id="output" class="output"></main>
+
+    <!-- Input Area -->
+    <footer class="input-area">
+      <span class="prompt">&gt;</span>
+      <input 
+        type="text" 
+        id="input" 
+        class="input" 
+        placeholder="Type a command..." 
+        autocomplete="off"
+        spellcheck="false"
+        disabled
+      >
+    </footer>
+
+    <!-- File Loader (shown initially) -->
+    <div id="loader" class="loader">
+      <div class="loader-content">
+        <h1>🗝️ Z-Machine Emulator</h1>
+        <p>Play classic Infocom text adventures</p>
+        
+        <div class="file-drop" id="file-drop">
+          <p>Drag & drop a story file here</p>
+          <p class="small">or</p>
+          <label class="file-button">
+            <input type="file" id="file-input" accept=".z3,.z5,.z8,.dat" hidden>
+            Choose File
+          </label>
+        </div>
+
+        <div class="supported-formats">
+          <p>Supported formats: .z3, .z5, .z8</p>
+        </div>
+
+        <!-- Pre-loaded games (if available) -->
+        <div id="game-list" class="game-list" hidden>
+          <h3>Available Games</h3>
+          <div class="games"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
