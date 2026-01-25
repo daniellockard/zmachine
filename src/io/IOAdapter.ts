@@ -88,6 +88,11 @@ export interface IOAdapter {
   eraseWindow?(window: number): void;
 
   /**
+   * Erase from cursor to end of line (V4+)
+   */
+  eraseLine?(): void;
+
+  /**
    * Set cursor position (V4+)
    */
   setCursor?(line: number, column: number): void;

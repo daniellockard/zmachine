@@ -196,6 +196,36 @@ export class Stack {
   }
 
   /**
+   * Get the current stack frame depth (for catch opcode)
+   * Returns 0 for the initial/main routine frame
+   */
+  getFramePointer(): number {
+    return this.frames.length;
+  }
+
+  /**
+   * Unwind the stack to a specific depth (for throw opcode)
+   * Pops frames until we reach the target depth
+   * 
+   * @param targetDepth - The frame depth to unwind to (from catch)
+   * @returns The frame we unwound to (for getting return PC)
+   * @throws Error if target depth is invalid
+   */
+  unwindTo(targetDepth: number): StackFrame {
+    if (targetDepth < 1 || targetDepth > this.frames.length) {
+      throw new Error(`Invalid stack frame pointer: ${targetDepth}`);
+    }
+    
+    // Pop frames until we reach target depth
+    while (this.frames.length > targetDepth) {
+      this.frames.pop();
+    }
+    
+    // Pop and return the target frame (the one we're returning from)
+    return this.frames.pop()!;
+  }
+
+  /**
    * Serialize stack for undo (lightweight format)
    */
   serialize(): { data: number[]; framePointers: number[] } {

@@ -440,6 +440,15 @@ export class Executor {
     this.handlers.set('restore_undo', this.op_restore_undo.bind(this));
     this.handlers.set('print_unicode', this.op_print_unicode.bind(this));
     this.handlers.set('check_unicode', this.op_check_unicode.bind(this));
+    this.handlers.set('set_true_colour', this.op_set_true_colour.bind(this));
+
+    // V5+ control flow
+    this.handlers.set('catch', this.op_catch.bind(this));
+    this.handlers.set('throw', this.op_throw.bind(this));
+
+    // Misc V4+/V5+ opcodes
+    this.handlers.set('piracy', this.op_piracy.bind(this));
+    this.handlers.set('erase_line', this.op_erase_line.bind(this));
   }
 
   // ============================================
@@ -1505,6 +1514,101 @@ export class Executor {
     }
     
     this.storeResult(ins, result);
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  // ============================================
+  // V5+ Control Flow Opcodes
+  // ============================================
+
+  /**
+   * catch -> (result)
+   * Store the current stack frame pointer for use with throw
+   */
+  private op_catch(ins: DecodedInstruction): ExecutionResult {
+    const framePointer = this.stack.getFramePointer();
+    this.storeResult(ins, framePointer);
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  /**
+   * throw value stack-frame
+   * Unwind the stack to the given frame and return the value
+   */
+  private op_throw(ins: DecodedInstruction): ExecutionResult {
+    const value = this.getOperandValue(ins.operands[0]);
+    const framePointer = this.getOperandValue(ins.operands[1]);
+    
+    // Unwind to the frame and get return info
+    const frame = this.stack.unwindTo(framePointer);
+    
+    // Store return value if needed
+    if (frame.storeVariable !== undefined) {
+      this.variables.store(frame.storeVariable, value & 0xFFFF);
+    }
+
+    return { nextPC: frame.returnPC };
+  }
+
+  /**
+   * piracy ?(label)
+   * Copy protection check - always branch (we're not pirates!)
+   */
+  private op_piracy(ins: DecodedInstruction): ExecutionResult {
+    // Always return true (disk is genuine)
+    return this.branch(ins, true);
+  }
+
+  /**
+   * erase_line value
+   * Erase from cursor to end of line in upper window
+   */
+  private op_erase_line(ins: DecodedInstruction): ExecutionResult {
+    const value = this.getOperandValue(ins.operands[0]);
+    
+    if (value === 1) {
+      // Erase from cursor to end of line
+      this.io.eraseLine?.();
+    }
+    // Other values are reserved
+    
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  /**
+   * set_true_colour foreground background
+   * Set 15-bit RGB colors (V5+)
+   */
+  private op_set_true_colour(ins: DecodedInstruction): ExecutionResult {
+    const foreground = this.getOperandValue(ins.operands[0]);
+    const background = this.getOperandValue(ins.operands[1]);
+    
+    // Convert 15-bit color to 24-bit RGB
+    // Format: 0bBBBBBGGGGGRRRRR
+    const toRGB = (color15: number): string | undefined => {
+      if (color15 === 0xFFFF) {
+        return undefined; // Keep current color
+      }
+      if (color15 === 0xFFFE) {
+        return undefined; // Use default
+      }
+      
+      const r = (color15 & 0x1F) << 3;
+      const g = ((color15 >> 5) & 0x1F) << 3;
+      const b = ((color15 >> 10) & 0x1F) << 3;
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+    
+    const fg = toRGB(foreground);
+    const bg = toRGB(background);
+    
+    if (fg !== undefined) {
+      this.io.setForegroundColor?.(foreground);
+    }
+    if (bg !== undefined) {
+      this.io.setBackgroundColor?.(background);
+    }
+    
     return { nextPC: (ins.address + ins.length) };
   }
 }

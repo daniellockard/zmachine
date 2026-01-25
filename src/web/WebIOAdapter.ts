@@ -248,6 +248,15 @@ export class WebIOAdapter implements IOAdapter {
     return { ...this.upperCursor };
   }
 
+  eraseLine(): void {
+    // Erase from cursor to end of line in upper window
+    if (this.currentWindow === 1 && this.status) {
+      // For simple implementation, just clear the pending text
+      // A full implementation would need to track line content
+      this.upperWindowText = '';
+    }
+  }
+
   setTextStyle(style: number): void {
     // Style 0 resets to roman, otherwise styles are cumulative (bitmask)
     if (style === 0) {
