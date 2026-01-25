@@ -137,13 +137,13 @@ src/
 ## Future Enhancements
 
 ### Tier 1 - Quality of Life
-- [ ] Timed input support (readLine/readChar timeouts)
-- [ ] Transcript download feature
-- [ ] Help menu with keyboard shortcuts
+- [x] Timed input support (readLine/readChar timeouts)
+- [x] Transcript download feature
+- [x] Help menu with keyboard shortcuts
 
 ### Tier 2 - Advanced Features
-- [ ] Sound effects playback
-- [ ] Input recording/playback
+- [x] Input recording/playback
+- [x] Sound effects playback (beep)
 - [ ] Mobile-friendly touch interface
 
 ### Tier 3 - V6 Support (Low Priority)

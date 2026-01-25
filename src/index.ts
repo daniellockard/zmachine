@@ -26,12 +26,12 @@
 // Main VM class
 export { ZMachine, RunState } from './core/ZMachine';
 
-// I/O interfaces
-export { IOAdapter, WindowProps } from './io/IOAdapter';
+// I/O interfaces (type-only for interfaces)
+export type { IOAdapter, WindowProps, ReadLineResult } from './io/IOAdapter';
 export { TestIOAdapter } from './io/TestIOAdapter';
 
 // Core types
-export {
+export type {
   ZVersion,
   ByteAddress,
   WordAddress,
@@ -68,12 +68,15 @@ export { zsciiToUnicode, unicodeToZscii } from './core/text/ZSCII';
 
 // Objects and properties (for debugging)
 export { ObjectTable } from './core/objects/ObjectTable';
-export { Properties, PropertyInfo } from './core/objects/Properties';
+export { Properties } from './core/objects/Properties';
+export type { PropertyInfo } from './core/objects/Properties';
 
 // Dictionary (for tools)
-export { Dictionary, DictionaryEntry } from './core/dictionary/Dictionary';
-export { Tokenizer, Token } from './core/dictionary/Tokenizer';
+export { Dictionary } from './core/dictionary/Dictionary';
+export type { DictionaryEntry } from './core/dictionary/Dictionary';
+export { Tokenizer } from './core/dictionary/Tokenizer';
+export type { Token } from './core/dictionary/Tokenizer';
 
 // Web adapter (for browser usage)
-export { WebIOAdapter, WebIOConfig } from './web/WebIOAdapter';
-export { ZMachineRunner, RunnerState, RunnerConfig } from './web/ZMachineRunner';
+export { WebIOAdapter } from './web/WebIOAdapter';
+export type { WebIOConfig } from './web/WebIOAdapter';

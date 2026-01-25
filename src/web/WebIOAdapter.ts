@@ -61,6 +61,18 @@ export class WebIOAdapter implements IOAdapter {
   /** Whether transcript is currently enabled */
   private transcriptEnabled: boolean = false;
 
+  /** Recorded inputs for playback */
+  private recordedInputs: string[] = [];
+  
+  /** Whether recording is enabled */
+  private isRecording: boolean = false;
+  
+  /** Playback queue for replaying recorded inputs */
+  private playbackQueue: string[] = [];
+  
+  /** Whether playback mode is active */
+  private isPlayingBack: boolean = false;
+
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
     this.input = config.inputElement;
@@ -76,6 +88,11 @@ export class WebIOAdapter implements IOAdapter {
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
+        
+        // Record input if recording
+        if (this.isRecording) {
+          this.recordedInputs.push(text);
+        }
         
         // Echo input to output
         this.print(text + '\n');
@@ -98,6 +115,7 @@ export class WebIOAdapter implements IOAdapter {
     this.version = version;
     this.output.innerHTML = '';
     this.transcript = [];
+    this.recordedInputs = [];
   }
 
   print(text: string): void {
@@ -174,6 +192,15 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
+    // Check for playback mode - automatically provide next input
+    if (this.isPlayingBack && this.playbackQueue.length > 0) {
+      const text = this.playbackQueue.shift()!;
+      this.print('>' + text + '\n');
+      // Small delay to make playback visible
+      await new Promise(r => setTimeout(r, 100));
+      return { text, terminator: 13 };
+    }
+    
     // Show prompt
     this.print('>');
     
@@ -325,6 +352,50 @@ export class WebIOAdapter implements IOAdapter {
       this.backgroundColor = '';
     } else if (color in WebIOAdapter.COLORS) {
       this.backgroundColor = WebIOAdapter.COLORS[color];
+    }
+  }
+
+  /** Audio context for sound effects (lazy initialized) */
+  private audioContext?: AudioContext;
+
+  /**
+   * Play a sound effect
+   * @param number - Sound number (1 = high beep, 2 = low beep, 3+ = sampled sounds)
+   * @param effect - Effect type (1 = prepare, 2 = start, 3 = stop, 4 = finish)
+   * @param volume - Volume (1-8, or 255 for default)
+   */
+  soundEffect(number: number, effect: number, volume: number): void {
+    // Only handle basic beeps (1 = high, 2 = low)
+    // Effect 2 = start/play
+    if (effect !== 2) return;
+    if (number !== 1 && number !== 2) return;
+    
+    try {
+      // Lazy init audio context (must be after user interaction)
+      if (!this.audioContext) {
+        this.audioContext = new AudioContext();
+      }
+      
+      const ctx = this.audioContext;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      // Frequency: high beep = 800Hz, low beep = 400Hz
+      oscillator.frequency.value = number === 1 ? 800 : 400;
+      oscillator.type = 'square';
+      
+      // Volume: convert 1-8 scale to 0-1
+      const vol = volume === 255 ? 0.3 : Math.min(volume / 8, 1) * 0.5;
+      gainNode.gain.value = vol;
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Short beep duration
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.1);
+    } catch {
+      // Audio not available, ignore
     }
   }
 
@@ -482,5 +553,132 @@ export class WebIOAdapter implements IOAdapter {
    */
   getTranscript(): string {
     return this.transcript.join('');
+  }
+
+  // ============================================
+  // Input Recording & Playback
+  // ============================================
+
+  /**
+   * Start recording user inputs
+   */
+  startRecording(): void {
+    this.isRecording = true;
+    this.recordedInputs = [];
+    this.print('[Recording started]\n');
+  }
+
+  /**
+   * Stop recording user inputs
+   */
+  stopRecording(): void {
+    this.isRecording = false;
+    this.print(`[Recording stopped - ${this.recordedInputs.length} commands captured]\n`);
+  }
+
+  /**
+   * Check if recording is active
+   */
+  isRecordingActive(): boolean {
+    return this.isRecording;
+  }
+
+  /**
+   * Get the recorded inputs
+   */
+  getRecordedInputs(): string[] {
+    return [...this.recordedInputs];
+  }
+
+  /**
+   * Download recorded inputs as a JSON file
+   */
+  downloadRecording(): void {
+    const data = {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      commands: this.recordedInputs,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zmachine-recording-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    this.print('[Recording downloaded]\n');
+  }
+
+  /**
+   * Load a recording for playback
+   * @param commands - Array of command strings to play back
+   */
+  loadPlayback(commands: string[]): void {
+    this.playbackQueue = [...commands];
+    this.isPlayingBack = true;
+    this.print(`[Playback loaded - ${commands.length} commands queued]\n`);
+  }
+
+  /**
+   * Load playback from a file
+   * @returns Promise that resolves when file is loaded
+   */
+  async loadPlaybackFromFile(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.json';
+      
+      fileInput.onchange = async (): Promise<void> => {
+        const file = fileInput.files?.[0];
+        if (file) {
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (data.commands && Array.isArray(data.commands)) {
+              this.loadPlayback(data.commands);
+              resolve(true);
+            } else {
+              this.print('[Invalid recording file]\n');
+              resolve(false);
+            }
+          } catch {
+            this.print('[Failed to load recording]\n');
+            resolve(false);
+          }
+        } else {
+          resolve(false);
+        }
+      };
+      
+      fileInput.click();
+    });
+  }
+
+  /**
+   * Stop playback mode
+   */
+  stopPlayback(): void {
+    this.isPlayingBack = false;
+    this.playbackQueue = [];
+    this.print('[Playback stopped]\n');
+  }
+
+  /**
+   * Check if playback is active
+   */
+  isPlaybackActive(): boolean {
+    return this.isPlayingBack && this.playbackQueue.length > 0;
+  }
+
+  /**
+   * Get remaining commands in playback queue
+   */
+  getPlaybackRemaining(): number {
+    return this.playbackQueue.length;
   }
 }

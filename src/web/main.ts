@@ -214,6 +214,9 @@ function setupFileDrop(): void {
 const toolbarEl = document.getElementById('toolbar') as HTMLElement;
 const btnTranscript = document.getElementById('btn-transcript') as HTMLButtonElement;
 const btnDownloadTranscript = document.getElementById('btn-download-transcript') as HTMLButtonElement;
+const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
+const btnDownloadRecording = document.getElementById('btn-download-recording') as HTMLButtonElement;
+const btnPlayback = document.getElementById('btn-playback') as HTMLButtonElement;
 const btnHelp = document.getElementById('btn-help') as HTMLButtonElement;
 const helpModal = document.getElementById('help-modal') as HTMLElement;
 const btnCloseHelp = document.getElementById('btn-close-help') as HTMLButtonElement;
@@ -249,6 +252,41 @@ function downloadTranscript(): void {
 }
 
 /**
+ * Toggle input recording
+ */
+function toggleRecording(): void {
+  if (!currentIO) return;
+  
+  if (currentIO.isRecordingActive()) {
+    currentIO.stopRecording();
+    btnRecord.classList.remove('recording');
+    btnRecord.textContent = '🔴 Record';
+    btnDownloadRecording.disabled = false;
+  } else {
+    currentIO.startRecording();
+    btnRecord.classList.add('recording');
+    btnRecord.textContent = '⏹️ Stop';
+    btnDownloadRecording.disabled = true;
+  }
+}
+
+/**
+ * Download the recording
+ */
+function downloadRecording(): void {
+  if (!currentIO) return;
+  currentIO.downloadRecording();
+}
+
+/**
+ * Load and start playback
+ */
+async function loadPlayback(): Promise<void> {
+  if (!currentIO) return;
+  await currentIO.loadPlaybackFromFile();
+}
+
+/**
  * Show help modal
  */
 function showHelp(): void {
@@ -268,6 +306,9 @@ function hideHelp(): void {
 function setupToolbar(): void {
   btnTranscript.addEventListener('click', toggleTranscript);
   btnDownloadTranscript.addEventListener('click', downloadTranscript);
+  btnRecord.addEventListener('click', toggleRecording);
+  btnDownloadRecording.addEventListener('click', downloadRecording);
+  btnPlayback.addEventListener('click', loadPlayback);
   btnHelp.addEventListener('click', showHelp);
   btnCloseHelp.addEventListener('click', hideHelp);
   
@@ -310,6 +351,20 @@ function setupKeyboardShortcuts(): void {
       if (currentIO?.isTranscriptEnabled()) {
         downloadTranscript();
       }
+      return;
+    }
+    
+    // Ctrl+R - Toggle recording
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+      toggleRecording();
+      return;
+    }
+    
+    // Ctrl+P - Load playback
+    if (e.ctrlKey && e.key === 'p') {
+      e.preventDefault();
+      loadPlayback();
       return;
     }
   });

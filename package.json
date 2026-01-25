@@ -25,6 +25,7 @@
   "scripts": {
     "build": "tsc",
     "build:web": "vite build",
+    "build:lib": "vite build --config vite.lib.config.ts",
     "prepublishOnly": "npm run build && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
