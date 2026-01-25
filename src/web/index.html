@@ -14,6 +14,13 @@
       <span class="score"></span>
     </header>
 
+    <!-- Toolbar -->
+    <div id="toolbar" class="toolbar hidden">
+      <button id="btn-transcript" title="Toggle Transcript (Ctrl+T)">📝 Transcript</button>
+      <button id="btn-download-transcript" title="Download Transcript (Ctrl+D)" disabled>💾 Download</button>
+      <button id="btn-help" title="Show Help (F1)">❓ Help</button>
+    </div>
+
     <!-- Main Game Output -->
     <main id="output" class="output"></main>
 
@@ -30,6 +37,33 @@
         disabled
       >
     </footer>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>🗝️ Z-Machine Emulator</h2>
+        <h3>Keyboard Shortcuts</h3>
+        <table class="shortcuts">
+          <tr><td><kbd>Enter</kbd></td><td>Submit command</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Command history</td></tr>
+          <tr><td><kbd>Ctrl+T</kbd></td><td>Toggle transcript</td></tr>
+          <tr><td><kbd>Ctrl+D</kbd></td><td>Download transcript</td></tr>
+          <tr><td><kbd>F1</kbd></td><td>Show this help</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Close dialogs</td></tr>
+        </table>
+        <h3>Common Game Commands</h3>
+        <table class="shortcuts">
+          <tr><td>look (l)</td><td>Describe current location</td></tr>
+          <tr><td>inventory (i)</td><td>List what you're carrying</td></tr>
+          <tr><td>examine (x)</td><td>Look at something closely</td></tr>
+          <tr><td>save</td><td>Save your game</td></tr>
+          <tr><td>restore</td><td>Load a saved game</td></tr>
+          <tr><td>undo</td><td>Undo last command</td></tr>
+          <tr><td>quit</td><td>End the game</td></tr>
+        </table>
+        <button id="btn-close-help" class="file-button">Close</button>
+      </div>
+    </div>
 
     <!-- File Loader (shown initially) -->
     <div id="loader" class="loader">

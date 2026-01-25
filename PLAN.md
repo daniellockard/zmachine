@@ -1,6 +1,8 @@
 # Z-Machine Emulator Implementation Plan
 
-A TypeScript Z-machine interpreter targeting V3 games first (Zork I-III), with a clean I/O abstraction for web UI. The core emulator is dependency-free; dev tooling uses npm.
+A TypeScript Z-machine interpreter supporting V1-V5 games, with a clean I/O abstraction for web UI. The core emulator is dependency-free; dev tooling uses npm.
+
+**Current Status:** ✅ 483 tests passing, 102 opcode handlers implemented, all V1-V5 games supported
 
 ## Architecture Overview
 
@@ -12,36 +14,27 @@ src/
 │   │   ├── Header.ts          # Header parsing ($00-$40)
 │   │   └── AddressUtils.ts    # Byte/word/packed address conversion
 │   │
-│   ├── cpu/
-│   │   ├── CPU.ts             # Main execution loop
+│   ├── stack/
 │   │   ├── Stack.ts           # Call stack and evaluation stack
-│   │   ├── Variables.ts       # Global/local variable access
 │   │   └── StackFrame.ts      # Routine call frame structure
+│   │
+│   ├── execution/
+│   │   ├── Executor.ts        # Opcode execution (102 handlers)
+│   │   └── Variables.ts       # Global/local variable access
 │   │
 │   ├── instructions/
 │   │   ├── Decoder.ts         # Instruction fetch and decode
 │   │   ├── Opcodes.ts         # Opcode definitions table
-│   │   ├── handlers/
-│   │   │   ├── Arithmetic.ts  # add, sub, mul, div, mod, etc.
-│   │   │   ├── Branch.ts      # je, jl, jg, jz, jump, etc.
-│   │   │   ├── Call.ts        # call_*, ret, rtrue, rfalse
-│   │   │   ├── Object.ts      # get_parent, insert_obj, test_attr, etc.
-│   │   │   ├── Memory.ts      # loadw, loadb, storew, storeb
-│   │   │   ├── IO.ts          # print, read, read_char, etc.
-│   │   │   ├── Table.ts       # copy_table, scan_table
-│   │   │   └── Misc.ts        # random, restart, quit, etc.
-│   │   └── BranchUtils.ts     # Branch offset calculation
+│   │   └── InstructionTypes.ts
 │   │
 │   ├── text/
 │   │   ├── ZCharDecoder.ts    # Z-character to ZSCII conversion
 │   │   ├── ZCharEncoder.ts    # ZSCII to Z-character (for dictionary)
 │   │   ├── Alphabet.ts        # Alphabet tables A0/A1/A2
-│   │   ├── Abbreviations.ts   # Abbreviation table handling
-│   │   └── ZSCII.ts           # ZSCII ↔ Unicode mapping
+│   │   └── Abbreviations.ts   # Abbreviation table handling
 │   │
 │   ├── objects/
-│   │   ├── ObjectTable.ts     # Object tree navigation
-│   │   ├── Properties.ts      # Property access
+│   │   ├── ObjectTable.ts     # Object tree navigation (V1-V3 and V4+)
 │   │   └── Attributes.ts      # Attribute get/set/clear
 │   │
 │   ├── dictionary/
@@ -49,93 +42,122 @@ src/
 │   │   └── Tokenizer.ts       # Input tokenization
 │   │
 │   ├── state/
-│   │   ├── GameState.ts       # Save/restore/undo state
-│   │   └── Quetzal.ts         # Quetzal save format
+│   │   ├── Quetzal.ts         # Quetzal save format
+│   │   └── SaveRestore.ts     # Save/restore/undo state
 │   │
-│   └── ZMachine.ts            # Main VM class, ties everything together
+│   └── ZMachine.ts            # Main VM class
 │
-├── io/                        # I/O abstraction layer
-│   ├── IOAdapter.ts           # Interface for platform-specific I/O
-│   ├── OutputStream.ts        # Output stream management (1-4)
-│   ├── InputStream.ts         # Input stream management (0-1)
-│   └── Screen.ts              # Screen model abstraction
+├── io/
+│   └── IOAdapter.ts           # Interface for platform-specific I/O
 │
 ├── web/                       # Browser-specific implementation
-│   ├── WebScreen.ts           # DOM-based screen renderer
-│   ├── WebInput.ts            # Keyboard input handling
-│   ├── WebStorage.ts          # IndexedDB save/load
-│   └── App.ts                 # Main web application
+│   ├── index.html             # Main HTML page
+│   ├── main.ts                # Entry point
+│   ├── WebIOAdapter.ts        # DOM-based I/O adapter
+│   ├── ZMachineRunner.ts      # Game runner
+│   └── public/
+│       └── styles.css         # Retro terminal styling
 │
 ├── types/
-│   ├── ZMachineTypes.ts       # Core type definitions
-│   └── Instruction.ts         # Instruction type definitions
+│   └── ZMachineTypes.ts       # Core type definitions
 │
 └── index.ts                   # Public API exports
 ```
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Foundation (Current)
-- [x] Project setup (TypeScript, Vitest, ESLint)
-- [x] Git repository initialized
-- [ ] Memory module with byte/word access
-- [ ] Header parsing
-- [ ] Address utilities
+### Core Engine ✅ Complete
+- [x] Memory module with byte/word access
+- [x] Header parsing (V1-V8 support)
+- [x] Address utilities (byte/word/packed)
+- [x] Instruction decoder (4 forms: 0OP, 1OP, 2OP, VAR, EXT)
+- [x] Opcode lookup tables (102 opcodes)
+- [x] Stack and call frames
+- [x] Variable access (globals/locals/stack)
 
-### Phase 2: Instruction Engine
-- [ ] Instruction decoder (4 forms)
-- [ ] Opcode lookup tables
-- [ ] Stack and call frames
-- [ ] Variable access (globals/locals)
+### Opcodes ✅ 102 Handlers
+- [x] Arithmetic: add, sub, mul, div, mod, log_shift, art_shift
+- [x] Logic: and, or, not, test
+- [x] Comparison: je, jl, jg, jz, jin, test_attr
+- [x] Control: jump, call_*, ret, rtrue, rfalse, throw, catch
+- [x] Variables: store, load, inc, dec, push, pull, inc_chk, dec_chk
+- [x] Memory: loadw, loadb, storew, storeb, copy_table, scan_table
+- [x] Objects: get_parent, get_child, get_sibling, insert_obj, remove_obj, etc.
+- [x] Properties: get_prop, put_prop, get_prop_addr, get_prop_len, get_next_prop
+- [x] Text: print, print_char, print_num, print_addr, print_paddr, print_obj, etc.
+- [x] Input: sread/aread (V1-V5), read_char, tokenise
+- [x] Screen: split_window, set_window, erase_window, set_cursor, get_cursor
+- [x] Style: set_text_style, set_colour, set_font, buffer_mode
+- [x] Streams: output_stream, input_stream
+- [x] Sound: sound_effect
+- [x] Misc: random, restart, quit, verify, piracy, check_arg_count
 
-### Phase 3: Core Opcodes (~40 for V3)
-- [ ] Arithmetic: add, sub, mul, div, mod
-- [ ] Logic: and, or, not, test
-- [ ] Comparison: je, jl, jg, jz
-- [ ] Control: jump, call, ret, rtrue, rfalse
-- [ ] Variables: store, load, inc, dec, push, pull
-- [ ] Memory: loadw, loadb, storew, storeb
+### Text System ✅ Complete
+- [x] Z-character decoding (shift lock, abbreviations)
+- [x] Alphabet tables (A0/A1/A2, custom alphabets V5+)
+- [x] Abbreviation expansion
+- [x] ZSCII to Unicode (including extra characters table)
+- [x] Text encoding for dictionary lookup
 
-### Phase 4: Text System
-- [ ] Z-character decoding
-- [ ] Alphabet tables
-- [ ] Abbreviation expansion
-- [ ] ZSCII to Unicode
+### Objects & Dictionary ✅ Complete
+- [x] V1-V3 object table (255 objects, 32 attributes)
+- [x] V4+ object table (65535 objects, 48 attributes)
+- [x] Property access (short and long properties)
+- [x] Dictionary lookup
+- [x] Input tokenization
 
-### Phase 5: Objects & Dictionary
-- [ ] Object table navigation
-- [ ] Property/attribute access
-- [ ] Dictionary lookup
-- [ ] Input tokenization
+### I/O & Web UI ✅ Complete
+- [x] I/O adapter interface
+- [x] All print opcodes
+- [x] Read opcodes (async input)
+- [x] Web terminal UI with retro CRT aesthetic
+- [x] Drag-and-drop file loading
+- [x] Command history (up/down arrows)
+- [x] Status line display
 
-### Phase 6: I/O & Web UI
-- [ ] I/O adapter interface
-- [ ] Print opcodes
-- [ ] Read opcode (async input)
-- [ ] Web terminal UI
-
-### Phase 7: Game State
+### Game State ✅ Complete
 - [x] Save/restore with Quetzal format
-- [x] Quetzal format (IFhd, UMem, Stks chunks)
+- [x] Quetzal chunks: IFhd, UMem, Stks
 - [x] Undo support (save_undo/restore_undo)
+- [x] Browser localStorage backup
 
 ## Z-Machine Version Support
 
-| Version | Priority | Status | Notes |
-|---------|----------|--------|-------|
-| V3 | 1st | ✅ Complete | Zork I-III, Hitchhiker's Guide |
-| V5 | 2nd | ✅ Working | Sherlock, most modern games |
-| V8 | 3rd | Untested | Large address space |
-| V1, V2 | Skip | N/A | Obsolete |
-| V4 | Skip | N/A | Transitional |
-| V6 | Last | N/A | Requires graphics |
+| Version | Status | Notes |
+|---------|--------|-------|
+| V1 | ✅ Working | Historic, rare |
+| V2 | ✅ Working | Historic, rare |
+| V3 | ✅ Complete | Zork I-III, Hitchhiker's Guide |
+| V4 | ✅ Working | Transitional |
+| V5 | ✅ Complete | Sherlock, most modern games |
+| V7 | ✅ Working | Large games |
+| V8 | ✅ Working | Large address space |
+| V6 | ❌ Skipped | Requires graphics (4 games) |
+
+## Future Enhancements
+
+### Tier 1 - Quality of Life
+- [ ] Timed input support (readLine/readChar timeouts)
+- [ ] Transcript download feature
+- [ ] Help menu with keyboard shortcuts
+
+### Tier 2 - Advanced Features
+- [ ] Sound effects playback
+- [ ] Input recording/playback
+- [ ] Mobile-friendly touch interface
+
+### Tier 3 - V6 Support (Low Priority)
+- [ ] Picture display opcodes
+- [ ] Mouse input
+- [ ] Multiple windows
 
 ## Key Technical Decisions
 
 1. **Big-endian handling**: Use `DataView` with explicit endianness
-2. **Async input**: Generator/yield pattern for `read` opcode
-3. **Testing**: Unit tests per module, Czech test files for integration
+2. **Async input**: Promise-based pattern for `read` opcodes
+3. **Testing**: Unit tests per module, integration tests with real game files
 4. **No runtime dependencies**: Core emulator is pure TypeScript
+5. **Version-aware decoding**: Opcodes adapt to Z-machine version
 
 ## Resources
 

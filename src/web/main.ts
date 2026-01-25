@@ -60,10 +60,14 @@ async function loadStory(data: ArrayBuffer): Promise<void> {
 
     // Create IO adapter and machine
     const io = createIOAdapter();
+    currentIO = io;
     machine = ZMachine.load(data, io);
 
     // Initialize IO with version
     io.initialize(machine.version);
+    
+    // Show toolbar
+    showToolbar();
 
     // Start the game
     await startGame(machine);
@@ -206,9 +210,116 @@ function setupFileDrop(): void {
   });
 }
 
+// Toolbar elements
+const toolbarEl = document.getElementById('toolbar') as HTMLElement;
+const btnTranscript = document.getElementById('btn-transcript') as HTMLButtonElement;
+const btnDownloadTranscript = document.getElementById('btn-download-transcript') as HTMLButtonElement;
+const btnHelp = document.getElementById('btn-help') as HTMLButtonElement;
+const helpModal = document.getElementById('help-modal') as HTMLElement;
+const btnCloseHelp = document.getElementById('btn-close-help') as HTMLButtonElement;
+
+// Current IO adapter (set when game loads)
+let currentIO: WebIOAdapter | null = null;
+
+/**
+ * Show the toolbar when a game is loaded
+ */
+function showToolbar(): void {
+  toolbarEl.classList.remove('hidden');
+}
+
+/**
+ * Toggle transcript recording
+ */
+function toggleTranscript(): void {
+  if (!currentIO) return;
+  
+  const isEnabled = currentIO.isTranscriptEnabled();
+  currentIO.setOutputStream(2, !isEnabled);
+  btnTranscript.classList.toggle('active', !isEnabled);
+  btnDownloadTranscript.disabled = isEnabled; // Disable download when transcript is off
+}
+
+/**
+ * Download the transcript
+ */
+function downloadTranscript(): void {
+  if (!currentIO) return;
+  currentIO.downloadTranscript();
+}
+
+/**
+ * Show help modal
+ */
+function showHelp(): void {
+  helpModal.classList.remove('hidden');
+}
+
+/**
+ * Hide help modal
+ */
+function hideHelp(): void {
+  helpModal.classList.add('hidden');
+}
+
+/**
+ * Setup toolbar event handlers
+ */
+function setupToolbar(): void {
+  btnTranscript.addEventListener('click', toggleTranscript);
+  btnDownloadTranscript.addEventListener('click', downloadTranscript);
+  btnHelp.addEventListener('click', showHelp);
+  btnCloseHelp.addEventListener('click', hideHelp);
+  
+  // Click outside modal to close
+  helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) {
+      hideHelp();
+    }
+  });
+}
+
+/**
+ * Setup global keyboard shortcuts
+ */
+function setupKeyboardShortcuts(): void {
+  document.addEventListener('keydown', (e) => {
+    // F1 - Help
+    if (e.key === 'F1') {
+      e.preventDefault();
+      showHelp();
+      return;
+    }
+    
+    // Escape - Close modals
+    if (e.key === 'Escape') {
+      hideHelp();
+      return;
+    }
+    
+    // Ctrl+T - Toggle transcript
+    if (e.ctrlKey && e.key === 't') {
+      e.preventDefault();
+      toggleTranscript();
+      return;
+    }
+    
+    // Ctrl+D - Download transcript
+    if (e.ctrlKey && e.key === 'd') {
+      e.preventDefault();
+      if (currentIO?.isTranscriptEnabled()) {
+        downloadTranscript();
+      }
+      return;
+    }
+  });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   setupFileDrop();
+  setupToolbar();
+  setupKeyboardShortcuts();
 });
 
 // For debugging

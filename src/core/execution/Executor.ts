@@ -417,6 +417,7 @@ export class Executor {
     this.handlers.set('call_vs2', this.op_call.bind(this)); // Same as call
     this.handlers.set('erase_window', this.op_erase_window.bind(this));
     this.handlers.set('set_cursor', this.op_set_cursor.bind(this));
+    this.handlers.set('get_cursor', this.op_get_cursor.bind(this));
     this.handlers.set('set_text_style', this.op_set_text_style.bind(this));
     this.handlers.set('buffer_mode', this.op_buffer_mode.bind(this));
     this.handlers.set('output_stream', this.op_output_stream.bind(this));
@@ -1217,6 +1218,21 @@ export class Executor {
     if (this.io.setCursor) {
       this.io.setCursor(line, column);
     }
+    return { nextPC: (ins.address + ins.length) };
+  }
+
+  private op_get_cursor(ins: DecodedInstruction): ExecutionResult {
+    // §15: get_cursor array - writes row and column to array
+    const array = this.getOperandValue(ins.operands[0]);
+    let row = 1, column = 1;
+    if (this.io.getCursor) {
+      const cursor = this.io.getCursor();
+      row = cursor.line;
+      column = cursor.column;
+    }
+    // Write cursor position as two words
+    this.memory.writeWord(array, row);
+    this.memory.writeWord(array + 2, column);
     return { nextPC: (ins.address + ins.length) };
   }
 

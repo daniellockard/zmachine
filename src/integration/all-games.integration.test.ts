@@ -259,7 +259,7 @@ describe('V6 Games', () => {
         io.queueLineInput('look');
         
         const zm = ZMachine.load(buffer, io);
-        const { steps, output } = await runUntilInput(zm, io);
+        const { steps, _output } = await runUntilInput(zm, io);
         
         expect(steps).toBeGreaterThan(100);
       }, 60000);

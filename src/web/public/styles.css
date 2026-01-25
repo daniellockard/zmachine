@@ -280,3 +280,117 @@ html, body {
     padding: 24px 16px;
   }
 }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--input-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toolbar.hidden {
+  display: none;
+}
+
+.toolbar button {
+  background: var(--status-bg);
+  border: 1px solid var(--border);
+  color: var(--text-color);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.toolbar button:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg-color);
+}
+
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar button.active {
+  background: var(--accent);
+  color: var(--bg-color);
+  border-color: var(--accent);
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--bg-color);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-bottom: 16px;
+  color: var(--text-color);
+}
+
+.modal-content h3 {
+  margin: 16px 0 8px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcuts td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts td:first-child {
+  color: var(--accent);
+  white-space: nowrap;
+  width: 40%;
+}
+
+.shortcuts td:last-child {
+  color: var(--text-dim);
+}
+
+kbd {
+  background: var(--status-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.modal-content .file-button {
+  margin-top: 16px;
+}

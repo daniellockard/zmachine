@@ -55,6 +55,12 @@ export class WebIOAdapter implements IOAdapter {
   /** Cursor position in upper window (1-based) */
   private upperCursor: { line: number; column: number } = { line: 1, column: 1 };
 
+  /** Transcript buffer for recording game session */
+  private transcript: string[] = [];
+  
+  /** Whether transcript is currently enabled */
+  private transcriptEnabled: boolean = false;
+
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
     this.input = config.inputElement;
@@ -91,9 +97,15 @@ export class WebIOAdapter implements IOAdapter {
   initialize(version: ZVersion): void {
     this.version = version;
     this.output.innerHTML = '';
+    this.transcript = [];
   }
 
   print(text: string): void {
+    // Capture transcript if enabled
+    if (this.transcriptEnabled) {
+      this.transcript.push(text);
+    }
+    
     // Route output based on current window
     if (this.currentWindow === 1 && this.status) {
       // Upper window (status line area) - buffer text for display
@@ -162,12 +174,6 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
-    // TODO: Implement timeout support (timeout is in tenths of a second)
-    // For now, timeout is ignored and input waits indefinitely
-    if (timeout && timeout > 0) {
-      // Future: Use setTimeout to resolve with empty input after timeout
-    }
-    
     // Show prompt
     this.print('>');
     
@@ -177,20 +183,40 @@ export class WebIOAdapter implements IOAdapter {
 
     return new Promise((resolve) => {
       this.lineResolve = resolve;
+      
+      // Timeout support: timeout is in tenths of a second
+      if (timeout && timeout > 0) {
+        const timeoutMs = timeout * 100;
+        setTimeout(() => {
+          if (this.lineResolve === resolve) {
+            // Return current text with 0 terminator (timeout)
+            const text = this.input.value;
+            this.input.value = '';
+            this.lineResolve = undefined;
+            resolve({ text, terminator: 0 });
+          }
+        }, timeoutMs);
+      }
     });
   }
 
   async readChar(timeout?: number): Promise<number> {
-    // TODO: Implement timeout support (timeout is in tenths of a second)
-    // For now, timeout is ignored and input waits indefinitely
-    if (timeout && timeout > 0) {
-      // Future: Use setTimeout to resolve with 0 after timeout
-    }
-    
     this.input.focus();
 
     return new Promise((resolve) => {
       this.charResolve = resolve;
+      
+      // Timeout support: timeout is in tenths of a second
+      if (timeout && timeout > 0) {
+        const timeoutMs = timeout * 100;
+        setTimeout(() => {
+          if (this.charResolve === resolve) {
+            // Return 0 for timeout
+            this.charResolve = undefined;
+            resolve(0);
+          }
+        }, timeoutMs);
+      }
     });
   }
 
@@ -408,5 +434,53 @@ export class WebIOAdapter implements IOAdapter {
       // Trigger file selection
       fileInput.click();
     });
+  }
+
+  /**
+   * Set output stream state
+   * @param stream - Stream number (1=screen, 2=transcript, 3=memory, 4=script)
+   * @param enabled - Whether to enable or disable the stream
+   */
+  setOutputStream(stream: number, enabled: boolean): void {
+    if (stream === 2) {
+      // Transcript stream
+      this.transcriptEnabled = enabled;
+      if (enabled && this.transcript.length === 0) {
+        this.transcript.push(`--- Transcript started: ${new Date().toLocaleString()} ---\n\n`);
+      }
+    }
+  }
+
+  /**
+   * Check if transcript is enabled
+   */
+  isTranscriptEnabled(): boolean {
+    return this.transcriptEnabled;
+  }
+
+  /**
+   * Download the transcript as a text file
+   */
+  downloadTranscript(): void {
+    const text = this.transcript.join('');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zmachine-transcript-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    this.print('[Transcript downloaded]\n');
+  }
+
+  /**
+   * Get transcript content as string
+   */
+  getTranscript(): string {
+    return this.transcript.join('');
   }
 }
