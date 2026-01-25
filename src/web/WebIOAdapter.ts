@@ -51,6 +51,9 @@ export class WebIOAdapter implements IOAdapter {
   
   /** Current text style (bitmask: 1=reverse, 2=bold, 4=italic, 8=fixed) */
   private textStyle: number = 0;
+  
+  /** Cursor position in upper window (1-based) */
+  private upperCursor: { line: number; column: number } = { line: 1, column: 1 };
 
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
@@ -223,10 +226,26 @@ export class WebIOAdapter implements IOAdapter {
     // Clear upper window when resizing
     if (lines > 0) {
       this.upperWindowText = '';
+      this.upperCursor = { line: 1, column: 1 };
       if (this.status) {
         this.status.textContent = '';
       }
     }
+  }
+
+  setCursor(line: number, column: number): void {
+    // Cursor positioning only applies to upper window
+    if (this.currentWindow === 1) {
+      this.upperCursor = { line, column };
+      // When cursor moves to column 1, reset the line text
+      if (column === 1) {
+        this.upperWindowText = '';
+      }
+    }
+  }
+
+  getCursor(): { line: number; column: number } {
+    return { ...this.upperCursor };
   }
 
   setTextStyle(style: number): void {
@@ -306,11 +325,26 @@ export class WebIOAdapter implements IOAdapter {
     this.onRestart?.();
   }
 
-  // Optional save/restore through browser storage
+  // Save/restore through browser file download/upload
   async save(data: Uint8Array): Promise<boolean> {
     try {
+      // Create a Blob from the save data
+      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zmachine-save-${Date.now()}.qzl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Also store in localStorage as backup
       const base64 = btoa(String.fromCharCode(...data));
       localStorage.setItem('zmachine-save', base64);
+      
       this.print('[Game saved]\n');
       return true;
     } catch {
@@ -320,22 +354,49 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async restore(): Promise<Uint8Array | null> {
-    try {
-      const base64 = localStorage.getItem('zmachine-save');
-      if (!base64) {
-        this.print('[No saved game found]\n');
-        return null;
-      }
-      const binary = atob(base64);
-      const data = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        data[i] = binary.charCodeAt(i);
-      }
-      this.print('[Game restored]\n');
-      return data;
-    } catch {
-      this.print('[Restore failed]\n');
-      return null;
-    }
+    return new Promise((resolve) => {
+      // Create file input for upload
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.qzl,.sav';
+      
+      fileInput.onchange = async () => {
+        const file = fileInput.files?.[0];
+        if (file) {
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            this.print('[Game restored]\n');
+            resolve(data);
+          } catch {
+            this.print('[Restore failed]\n');
+            resolve(null);
+          }
+        } else {
+          // User cancelled - try localStorage backup
+          const base64 = localStorage.getItem('zmachine-save');
+          if (base64) {
+            try {
+              const binary = atob(base64);
+              const data = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) {
+                data[i] = binary.charCodeAt(i);
+              }
+              this.print('[Game restored from backup]\n');
+              resolve(data);
+            } catch {
+              this.print('[No saved game found]\n');
+              resolve(null);
+            }
+          } else {
+            this.print('[No saved game found]\n');
+            resolve(null);
+          }
+        }
+      };
+      
+      // Trigger file selection
+      fileInput.click();
+    });
   }
 }
