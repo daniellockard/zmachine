@@ -362,6 +362,7 @@ export class Executor {
     this.handlers.set('mod', this.op_mod.bind(this));
     this.handlers.set('call_2s', this.op_call_2s.bind(this));
     this.handlers.set('call_2n', this.op_call_2n.bind(this));
+    this.handlers.set('set_colour', this.op_set_colour.bind(this));
 
     // 1OP opcodes
     this.handlers.set('jz', this.op_jz.bind(this));
@@ -650,6 +651,22 @@ export class Executor {
     const routine = this.getOperandValue(ins.operands[0]);
     const arg = this.getOperandValue(ins.operands[1]);
     return this.callRoutine(routine, [arg], undefined, (ins.address + ins.length));
+  }
+
+  private op_set_colour(ins: DecodedInstruction): ExecutionResult {
+    const foreground = this.getOperandValue(ins.operands[0]);
+    const background = this.getOperandValue(ins.operands[1]);
+    
+    // Z-machine colors: 0=current, 1=default, 2=black, 3=red, 4=green,
+    // 5=yellow, 6=blue, 7=magenta, 8=cyan, 9=white
+    if (this.io.setForegroundColor && foreground !== 0) {
+      this.io.setForegroundColor(foreground);
+    }
+    if (this.io.setBackgroundColor && background !== 0) {
+      this.io.setBackgroundColor(background);
+    }
+    
+    return { nextPC: (ins.address + ins.length) };
   }
 
   // ============================================

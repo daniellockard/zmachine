@@ -48,6 +48,9 @@ export class WebIOAdapter implements IOAdapter {
   
   /** Buffer for upper window text (V4+ games write directly) */
   private upperWindowText: string = '';
+  
+  /** Current text style (bitmask: 1=reverse, 2=bold, 4=italic, 8=fixed) */
+  private textStyle: number = 0;
 
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
@@ -99,10 +102,50 @@ export class WebIOAdapter implements IOAdapter {
       // Lower window (main output)
       const span = document.createElement('span');
       span.textContent = text;
+      
+      // Apply text styles
+      this.applyTextStyle(span);
+      
       this.output.appendChild(span);
       
       // Auto-scroll to bottom
       this.output.scrollTop = this.output.scrollHeight;
+    }
+  }
+  
+  /**
+   * Apply current text style and colors to an element
+   * Style bits: 1=reverse, 2=bold, 4=italic, 8=fixed-width
+   */
+  private applyTextStyle(element: HTMLElement): void {
+    // Apply colors (unless reverse video is set, which swaps them)
+    if (!(this.textStyle & 1)) {
+      if (this.foregroundColor) {
+        element.style.color = this.foregroundColor;
+      }
+      if (this.backgroundColor) {
+        element.style.backgroundColor = this.backgroundColor;
+      }
+    }
+    
+    if (this.textStyle & 1) {
+      // Reverse video - swap foreground and background
+      const fg = this.foregroundColor || 'var(--text-color, #00ff00)';
+      const bg = this.backgroundColor || 'var(--bg-color, #0a0a0a)';
+      element.style.backgroundColor = fg;
+      element.style.color = bg;
+    }
+    if (this.textStyle & 2) {
+      // Bold
+      element.style.fontWeight = 'bold';
+    }
+    if (this.textStyle & 4) {
+      // Italic
+      element.style.fontStyle = 'italic';
+    }
+    if (this.textStyle & 8) {
+      // Fixed-width (already monospace, but ensure it)
+      element.style.fontFamily = 'monospace';
     }
   }
 
@@ -183,6 +226,51 @@ export class WebIOAdapter implements IOAdapter {
       if (this.status) {
         this.status.textContent = '';
       }
+    }
+  }
+
+  setTextStyle(style: number): void {
+    // Style 0 resets to roman, otherwise styles are cumulative (bitmask)
+    if (style === 0) {
+      this.textStyle = 0;
+    } else {
+      this.textStyle = style;
+    }
+  }
+
+  /** Z-machine color palette */
+  private static readonly COLORS: Record<number, string> = {
+    2: '#000000',  // black
+    3: '#ff0000',  // red
+    4: '#00ff00',  // green
+    5: '#ffff00',  // yellow
+    6: '#0000ff',  // blue
+    7: '#ff00ff',  // magenta
+    8: '#00ffff',  // cyan
+    9: '#ffffff',  // white
+  };
+
+  /** Current foreground color (CSS) */
+  private foregroundColor: string = '';
+  
+  /** Current background color (CSS) */
+  private backgroundColor: string = '';
+
+  setForegroundColor(color: number): void {
+    if (color === 1) {
+      // Default
+      this.foregroundColor = '';
+    } else if (color in WebIOAdapter.COLORS) {
+      this.foregroundColor = WebIOAdapter.COLORS[color];
+    }
+  }
+
+  setBackgroundColor(color: number): void {
+    if (color === 1) {
+      // Default
+      this.backgroundColor = '';
+    } else if (color in WebIOAdapter.COLORS) {
+      this.backgroundColor = WebIOAdapter.COLORS[color];
     }
   }
 
