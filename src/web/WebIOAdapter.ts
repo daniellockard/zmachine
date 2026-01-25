@@ -337,8 +337,9 @@ export class WebIOAdapter implements IOAdapter {
   // Save/restore through browser file download/upload
   async save(data: Uint8Array): Promise<boolean> {
     try {
-      // Create a Blob from the save data
-      const blob = new Blob([data], { type: 'application/octet-stream' });
+      // Create a Blob from the save data (use slice to ensure plain ArrayBuffer)
+      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       
       // Create download link
@@ -369,7 +370,7 @@ export class WebIOAdapter implements IOAdapter {
       fileInput.type = 'file';
       fileInput.accept = '.qzl,.sav';
       
-      fileInput.onchange = async () => {
+      fileInput.onchange = async (): Promise<void> => {
         const file = fileInput.files?.[0];
         if (file) {
           try {
