@@ -103,6 +103,8 @@ export interface DecodedInstruction {
   length: number;
   /** The opcode number */
   opcode: number;
+  /** Opcode name for handler dispatch */
+  opcodeName: string;
   /** Instruction form */
   form: InstructionForm;
   /** Operand count category */
@@ -126,10 +128,12 @@ export interface DecodedInstruction {
  * Result of executing an instruction
  */
 export interface ExecutionResult {
+  /** The next program counter address */
+  nextPC?: ByteAddress;
   /** If true, execution should halt (quit, fatal error) */
   halted?: boolean;
-  /** If set, jump to this address instead of advancing PC */
-  jumpTo?: ByteAddress;
-  /** If set, the instruction is waiting for input */
+  /** If set, an error occurred during execution */
+  error?: string;
+  /** If true, the instruction is waiting for input */
   waitingForInput?: boolean;
 }

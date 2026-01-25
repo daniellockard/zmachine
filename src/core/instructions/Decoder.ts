@@ -291,6 +291,7 @@ export class Decoder {
       address,
       length: 0, // Will be set at end
       opcode,
+      opcodeName: opcodeInfo?.name ?? 'unknown',
       form,
       operandCount,
       operands,
