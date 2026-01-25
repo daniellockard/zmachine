@@ -35,6 +35,8 @@ export interface OpcodeInfo {
   minVersion: ZVersion;
   /** Maximum Z-machine version (if removed in later versions) */
   maxVersion?: ZVersion;
+  /** Version from which this instruction stores (for sread->aread transition) */
+  storesFromVersion?: ZVersion;
 }
 
 /**
@@ -49,6 +51,7 @@ function op(
     hasText?: boolean;
     minVersion?: ZVersion;
     maxVersion?: ZVersion;
+    storesFromVersion?: ZVersion;
   } = {}
 ): OpcodeInfo {
   return {
@@ -59,6 +62,7 @@ function op(
     hasText: options.hasText ?? false,
     minVersion: options.minVersion ?? 1,
     maxVersion: options.maxVersion,
+    storesFromVersion: options.storesFromVersion,
   };
 }
 
@@ -174,7 +178,7 @@ export const OPCODES_VAR: Record<number, OpcodeInfo> = {
   0x01: op('storew', OperandCount.VAR),                      // §15: storew array word-index value
   0x02: op('storeb', OperandCount.VAR),                      // §15: storeb array byte-index value
   0x03: op('put_prop', OperandCount.VAR),                    // §15: put_prop object property value
-  0x04: op('sread', OperandCount.VAR),                       // §15: sread text parse (V1-3) or aread (V5+)
+  0x04: op('sread', OperandCount.VAR, { storesFromVersion: 5 }), // §15: sread text parse (V1-4) or aread (V5+) stores result
   0x05: op('print_char', OperandCount.VAR),                  // §15: print_char output-character-code
   0x06: op('print_num', OperandCount.VAR),                   // §15: print_num value
   0x07: op('random', OperandCount.VAR, { stores: true }),    // §15: random range -> (result)

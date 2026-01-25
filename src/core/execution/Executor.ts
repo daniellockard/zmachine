@@ -1038,22 +1038,42 @@ export class Executor {
   }
 
   private async op_sread(ins: DecodedInstruction): Promise<ExecutionResult> {
-    // V1-3 read opcode: sread text parse
+    // §15: sread/aread - read and tokenize player input
+    // V1-4: sread text parse
+    // V5+: aread text parse time routine -> (result)
     const textBuffer = this.getOperandValue(ins.operands[0]);
-    const parseBuffer = this.getOperandValue(ins.operands[1]);
+    const parseBuffer = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : 0;
+    // time and routine operands are for timed input (V4+, not fully implemented)
     
     const maxLen = this.memory.readByte(textBuffer);
     const result = await this.io.readLine(maxLen);
     
-    // Store text in buffer (lowercase, starting at byte 1, null-terminated)
+    // Store text in buffer (lowercase)
     const text = result.text.toLowerCase();
-    for (let i = 0; i < text.length; i++) {
-      this.memory.writeByte(textBuffer + 1 + i, text.charCodeAt(i));
-    }
-    this.memory.writeByte(textBuffer + 1 + text.length, 0);
     
-    // Tokenize input into parse buffer
-    this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
+    if (this.version >= 5) {
+      // V5+: byte 1 = length, text starts at byte 2
+      this.memory.writeByte(textBuffer + 1, text.length);
+      for (let i = 0; i < text.length; i++) {
+        this.memory.writeByte(textBuffer + 2 + i, text.charCodeAt(i));
+      }
+    } else {
+      // V1-4: text starts at byte 1, null-terminated
+      for (let i = 0; i < text.length; i++) {
+        this.memory.writeByte(textBuffer + 1 + i, text.charCodeAt(i));
+      }
+      this.memory.writeByte(textBuffer + 1 + text.length, 0);
+    }
+    
+    // Tokenize if parse buffer provided
+    if (parseBuffer !== 0) {
+      this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
+    }
+    
+    // V5+ returns the terminating character (13 = newline)
+    if (this.version >= 5 && ins.storeVariable !== undefined) {
+      this.storeResult(ins, result.terminator || 13);
+    }
     
     return { nextPC: (ins.address + ins.length) };
   }

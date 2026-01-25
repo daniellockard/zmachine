@@ -298,7 +298,10 @@ export class Decoder {
     };
     
     // Read store variable if instruction stores
-    if (opcodeInfo?.stores) {
+    // Handle version-conditional stores (e.g., sread stores in V5+)
+    const storesInThisVersion = opcodeInfo?.stores || 
+      (opcodeInfo?.storesFromVersion !== undefined && this.version >= opcodeInfo.storesFromVersion);
+    if (storesInThisVersion) {
       instruction.storeVariable = this.memory.readByte(address + offset);
       offset++;
     }
