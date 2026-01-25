@@ -45,6 +45,9 @@ export class WebIOAdapter implements IOAdapter {
   
   /** Number of lines in upper window */
   private upperWindowLines: number = 0;
+  
+  /** Buffer for upper window text (V4+ games write directly) */
+  private upperWindowText: string = '';
 
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
@@ -85,13 +88,22 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   print(text: string): void {
-    // Convert newlines to <br> and append
-    const span = document.createElement('span');
-    span.textContent = text;
-    this.output.appendChild(span);
-    
-    // Auto-scroll to bottom
-    this.output.scrollTop = this.output.scrollHeight;
+    // Route output based on current window
+    if (this.currentWindow === 1 && this.status) {
+      // Upper window (status line area) - buffer text for display
+      this.upperWindowText += text;
+      // Update status element with the buffered text
+      // Strip newlines and show as single line
+      this.status.textContent = this.upperWindowText.replace(/\n/g, ' ').trim();
+    } else {
+      // Lower window (main output)
+      const span = document.createElement('span');
+      span.textContent = text;
+      this.output.appendChild(span);
+      
+      // Auto-scroll to bottom
+      this.output.scrollTop = this.output.scrollHeight;
+    }
   }
 
   printLine(text: string): void {
@@ -156,21 +168,42 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   setWindow(window: number): void {
-    // Track current window for V3+ windowing support
-    // Window 0 = lower/main, Window 1 = upper/status
+    // When switching windows, clear upper window buffer if switching TO upper window
+    if (window === 1 && this.currentWindow !== 1) {
+      this.upperWindowText = '';
+    }
     this.currentWindow = window;
   }
 
   splitWindow(lines: number): void {
-    // Track upper window size for V3+ windowing support
     this.upperWindowLines = lines;
-    // Could be used to create a fixed upper window
-    // For now, just track the value for future implementation
+    // Clear upper window when resizing
+    if (lines > 0) {
+      this.upperWindowText = '';
+      if (this.status) {
+        this.status.textContent = '';
+      }
+    }
   }
 
   eraseWindow(window: number): void {
-    if (window === -1 || window === 0) {
+    if (window === -1) {
+      // Unsplit and clear all
       this.output.innerHTML = '';
+      this.upperWindowText = '';
+      if (this.status) this.status.textContent = '';
+      this.upperWindowLines = 0;
+      this.currentWindow = 0;
+    } else if (window === -2) {
+      // Clear all, keep split
+      this.output.innerHTML = '';
+      this.upperWindowText = '';
+      if (this.status) this.status.textContent = '';
+    } else if (window === 0) {
+      this.output.innerHTML = '';
+    } else if (window === 1) {
+      this.upperWindowText = '';
+      if (this.status) this.status.textContent = '';
     }
   }
 
