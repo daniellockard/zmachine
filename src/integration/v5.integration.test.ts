@@ -75,7 +75,7 @@ describe('V5 Game Integration', () => {
     expect(fullOutput.length).toBeGreaterThan(100);
   }, 60000);
 
-  it.only('should run Sherlock and produce output', async () => {
+  it('should run Sherlock and produce output', async () => {
     // Try the simpler r26 Sherlock
     const buffer = loadSherlock('sherlock-r26-s880127.z5');
     const io = new TestIOAdapter();
