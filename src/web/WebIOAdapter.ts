@@ -39,6 +39,12 @@ export class WebIOAdapter implements IOAdapter {
   private lineResolve?: (result: ReadLineResult) => void;
   private charResolve?: (char: number) => void;
   private version: ZVersion = 3;
+  
+  /** Current active window (0 = lower/main, 1 = upper/status) */
+  private currentWindow: number = 0;
+  
+  /** Number of lines in upper window */
+  private upperWindowLines: number = 0;
 
   constructor(config: WebIOConfig) {
     this.output = config.outputElement;
@@ -97,7 +103,13 @@ export class WebIOAdapter implements IOAdapter {
     this.output.scrollTop = this.output.scrollHeight;
   }
 
-  async readLine(maxLength: number, _timeout?: number): Promise<ReadLineResult> {
+  async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
+    // TODO: Implement timeout support (timeout is in tenths of a second)
+    // For now, timeout is ignored and input waits indefinitely
+    if (timeout && timeout > 0) {
+      // Future: Use setTimeout to resolve with empty input after timeout
+    }
+    
     // Show prompt
     this.print('>');
     
@@ -110,7 +122,13 @@ export class WebIOAdapter implements IOAdapter {
     });
   }
 
-  async readChar(_timeout?: number): Promise<number> {
+  async readChar(timeout?: number): Promise<number> {
+    // TODO: Implement timeout support (timeout is in tenths of a second)
+    // For now, timeout is ignored and input waits indefinitely
+    if (timeout && timeout > 0) {
+      // Future: Use setTimeout to resolve with 0 after timeout
+    }
+    
     this.input.focus();
 
     return new Promise((resolve) => {
@@ -137,14 +155,17 @@ export class WebIOAdapter implements IOAdapter {
     return div.innerHTML;
   }
 
-  setWindow(_window: number): void {
-    // For V3, we only have upper (status) and lower (main) windows
-    // This is a no-op for simple implementation
+  setWindow(window: number): void {
+    // Track current window for V3+ windowing support
+    // Window 0 = lower/main, Window 1 = upper/status
+    this.currentWindow = window;
   }
 
-  splitWindow(_lines: number): void {
+  splitWindow(lines: number): void {
+    // Track upper window size for V3+ windowing support
+    this.upperWindowLines = lines;
     // Could be used to create a fixed upper window
-    // For now, just use status line
+    // For now, just track the value for future implementation
   }
 
   eraseWindow(window: number): void {

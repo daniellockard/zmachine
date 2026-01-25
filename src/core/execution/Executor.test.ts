@@ -10,7 +10,6 @@ import { Stack } from '../cpu/Stack';
 import { Variables } from '../variables/Variables';
 import { ZCharDecoder } from '../text/ZCharDecoder';
 import { TestIOAdapter } from '../../io/TestIOAdapter';
-import { Decoder } from '../instructions/Decoder';
 import { DecodedInstruction, OperandType, Operand, InstructionForm, OperandCount } from '../../types/ZMachineTypes';
 
 describe('Executor', () => {
@@ -21,7 +20,6 @@ describe('Executor', () => {
   let textDecoder: ZCharDecoder;
   let io: TestIOAdapter;
   let executor: Executor;
-  let _decoder: Decoder;
 
   function createTestMemory(): Memory {
     const size = 0x10000; // 64KB
@@ -85,7 +83,6 @@ describe('Executor', () => {
     io = new TestIOAdapter();
     textDecoder = new ZCharDecoder(memory, 3, header.abbreviationsAddress);
     executor = new Executor(memory, header, stack, variables, 3, io, textDecoder);
-    _decoder = new Decoder(memory, 3);
   });
 
   describe('arithmetic operations', () => {

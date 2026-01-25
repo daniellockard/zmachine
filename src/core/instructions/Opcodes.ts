@@ -119,7 +119,14 @@ export const OPCODES_1OP: Record<number, OpcodeInfo> = {
   0x0D: op('print_paddr', OperandCount.OP1),                 // §15: print_paddr packed-address-of-string
   0x0E: op('load', OperandCount.OP1, { stores: true }),      // §15: load (variable) -> (result)
   0x0F: op('not', OperandCount.OP1, { stores: true, maxVersion: 4 }), // §15: not value -> (result) (V1-4 only)
-  // In V5+, 0x0F becomes call_1n
+  // Note: In V5+, 0x0F becomes call_1n - handled by version-aware lookup
+};
+
+/**
+ * V5+ override for 1OP opcode 0x0F: call_1n replaces not
+ */
+export const OPCODES_1OP_V5: Record<number, OpcodeInfo> = {
+  0x0F: op('call_1n', OperandCount.OP1, { minVersion: 5 }), // §15: call_1n routine
 };
 
 /**
@@ -142,6 +149,21 @@ export const OPCODES_0OP: Record<number, OpcodeInfo> = {
   0x0D: op('verify', OperandCount.OP0, { branches: true, minVersion: 3 }), // §15: verify ?(label)
   // 0x0E is the extended opcode prefix (0xBE)
   0x0F: op('piracy', OperandCount.OP0, { branches: true, minVersion: 5 }), // §15: piracy ?(label)
+};
+
+/**
+ * V5+ override for 0OP opcode 0x09: catch replaces pop
+ */
+export const OPCODES_0OP_V5: Record<number, OpcodeInfo> = {
+  0x09: op('catch', OperandCount.OP0, { stores: true, minVersion: 5 }), // §15: catch -> (result)
+};
+
+/**
+ * V4+ override for 0OP opcodes 0x05 and 0x06: save/restore become store opcodes
+ */
+export const OPCODES_0OP_V4: Record<number, OpcodeInfo> = {
+  0x05: op('save', OperandCount.OP0, { stores: true, minVersion: 4, maxVersion: 4 }), // §15: save -> (result) (V4)
+  0x06: op('restore', OperandCount.OP0, { stores: true, minVersion: 4, maxVersion: 4 }), // §15: restore -> (result) (V4)
 };
 
 /**
@@ -207,16 +229,32 @@ export function get2OPInfo(opcode: number): OpcodeInfo | undefined {
 }
 
 /**
- * Get opcode info for a 1OP opcode
+ * Get opcode info for a 1OP opcode (version-aware)
  */
-export function get1OPInfo(opcode: number): OpcodeInfo | undefined {
+export function get1OPInfo(opcode: number, version: number = 3): OpcodeInfo | undefined {
+  // V5+ overrides
+  if (version >= 5 && opcode in OPCODES_1OP_V5) {
+    return OPCODES_1OP_V5[opcode];
+  }
   return OPCODES_1OP[opcode];
 }
 
 /**
- * Get opcode info for a 0OP opcode
+ * Get opcode info for a 0OP opcode (version-aware)
  */
-export function get0OPInfo(opcode: number): OpcodeInfo | undefined {
+export function get0OPInfo(opcode: number, version: number = 3): OpcodeInfo | undefined {
+  // V5+ overrides (catch replaces pop)
+  if (version >= 5 && opcode in OPCODES_0OP_V5) {
+    return OPCODES_0OP_V5[opcode];
+  }
+  // V4 overrides (save/restore become store opcodes)
+  if (version === 4 && opcode in OPCODES_0OP_V4) {
+    return OPCODES_0OP_V4[opcode];
+  }
+  // V5+ save/restore are illegal as 0OP - they use EXT form
+  if (version >= 5 && (opcode === 0x05 || opcode === 0x06)) {
+    return undefined; // Illegal in V5+
+  }
   return OPCODES_0OP[opcode];
 }
 

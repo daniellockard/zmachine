@@ -115,17 +115,17 @@ src/
 - [ ] Web terminal UI
 
 ### Phase 7: Game State
-- [ ] Save/restore
-- [ ] Quetzal format
-- [ ] Undo support
+- [x] Save/restore with Quetzal format
+- [x] Quetzal format (IFhd, UMem, Stks chunks)
+- [x] Undo support (save_undo/restore_undo)
 
 ## Z-Machine Version Support
 
 | Version | Priority | Status | Notes |
 |---------|----------|--------|-------|
-| V3 | 1st | Target | Zork I-III, Hitchhiker's Guide |
-| V5 | 2nd | Later | Modern Inform games |
-| V8 | 3rd | Later | Large address space |
+| V3 | 1st | ✅ Complete | Zork I-III, Hitchhiker's Guide |
+| V5 | 2nd | ✅ Working | Sherlock, most modern games |
+| V8 | 3rd | Untested | Large address space |
 | V1, V2 | Skip | N/A | Obsolete |
 | V4 | Skip | N/A | Transitional |
 | V6 | Last | N/A | Requires graphics |

@@ -29,6 +29,7 @@ import { Properties } from '../objects/Properties';
 import { Dictionary } from '../dictionary/Dictionary';
 import { Tokenizer } from '../dictionary/Tokenizer';
 import { encodeText } from '../text/ZCharEncoder';
+import { createQuetzalSave, parseQuetzalSave, verifySaveCompatibility } from '../state/Quetzal';
 
 /**
  * Handler function for an opcode
@@ -69,6 +70,10 @@ export class Executor {
 
   private handlers: Map<string, OpcodeHandler> = new Map();
 
+  // Output stream state
+  private streamEnabled: boolean[] = [false, true, false, false, false]; // Streams 1-4 (index 0 unused)
+  private stream3Stack: Array<{ table: number; pos: number }> = []; // Memory stream is stackable
+
   constructor(
     memory: Memory,
     header: Header,
@@ -106,10 +111,52 @@ export class Executor {
     pc: ByteAddress;
   } | null = null;
 
+  /** DEBUG: Opcode frequency counter */
+  private opcodeCount: Map<string, number> = new Map();
+  private totalOps: number = 0;
+  
+  /** DEBUG: Unknown opcode details */
+  private unknownOpcodes: Map<number, { address: number; count: number }> = new Map();
+  
+  /** DEBUG: Last 10 executed PCs */
+  private recentPCs: ByteAddress[] = [];
+  private lastExecutedPC: ByteAddress = 0;
+
+  /** DEBUG: Get opcode statistics */
+  getOpcodeStats(): { 
+    total: number; 
+    counts: Map<string, number>; 
+    unknowns: Map<number, { address: number; count: number }>;
+  } {
+    return { total: this.totalOps, counts: this.opcodeCount, unknowns: this.unknownOpcodes };
+  }
+
   /**
    * Execute a decoded instruction
    */
   async execute(instruction: DecodedInstruction): Promise<ExecutionResult> {
+    // Track recent PCs for debugging
+    this.recentPCs.push(instruction.address);
+    if (this.recentPCs.length > 20) {
+      this.recentPCs.shift();
+    }
+    this.lastExecutedPC = instruction.address;
+    
+    // DEBUG: Track opcode frequency
+    this.totalOps++;
+    const count = this.opcodeCount.get(instruction.opcodeName) || 0;
+    this.opcodeCount.set(instruction.opcodeName, count + 1);
+    
+    // DEBUG: Track unknown opcodes  
+    if (instruction.opcodeName === 'unknown') {
+      const existing = this.unknownOpcodes.get(instruction.opcode);
+      if (!existing) {
+        this.unknownOpcodes.set(instruction.opcode, { address: instruction.address, count: 1 });
+      } else {
+        existing.count++;
+      }
+    }
+
     const handler = this.handlers.get(instruction.opcodeName);
     const nextPC = instruction.address + instruction.length;
 
@@ -128,6 +175,38 @@ export class Executor {
         error: `Error executing ${instruction.opcodeName}: ${error}`,
       };
     }
+  }
+
+  /**
+   * Print text respecting output streams
+   * Stream 1: Screen (default)
+   * Stream 2: Transcript (passed to IO)
+   * Stream 3: Memory table (stackable, highest priority)
+   * Stream 4: Player input script (passed to IO)
+   */
+  private printText(text: string): void {
+    // Stream 3 (memory) takes priority and is exclusive when active
+    if (this.stream3Stack.length > 0) {
+      const stream = this.stream3Stack[this.stream3Stack.length - 1];
+      // Write characters to the memory table
+      // Format: word 0 = length, then ZSCII chars
+      for (const char of text) {
+        const zscii = char.charCodeAt(0);
+        this.memory.writeByte(stream.table + 2 + stream.pos, zscii);
+        stream.pos++;
+      }
+      // Update length word
+      this.memory.writeWord(stream.table, stream.pos);
+      return; // Stream 3 is exclusive
+    }
+
+    // Stream 1 (screen) - default output
+    if (this.streamEnabled[1]) {
+      this.io.print(text);
+    }
+
+    // Stream 2 (transcript) and 4 (script) would be handled by IO adapter
+    // We pass them through if the IO adapter supports setOutputStream
   }
 
   /**
@@ -630,7 +709,7 @@ export class Executor {
   private op_print_addr(ins: DecodedInstruction): ExecutionResult {
     const addr = this.getOperandValue(ins.operands[0]);
     const result = this.textDecoder.decode(addr);
-    this.io.print(result.text);
+    this.printText(result.text);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -652,7 +731,7 @@ export class Executor {
     const nameInfo = this.objectTable.getShortNameAddress(obj);
     if (nameInfo.lengthBytes > 0) {
       const result = this.textDecoder.decode(nameInfo.address);
-      this.io.print(result.text);
+      this.printText(result.text);
     }
     return { nextPC: (ins.address + ins.length) };
   }
@@ -680,7 +759,7 @@ export class Executor {
       byteAddr = packedAddr * 8;
     }
     const result = this.textDecoder.decode(byteAddr);
-    this.io.print(result.text);
+    this.printText(result.text);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -717,16 +796,16 @@ export class Executor {
 
   private op_print(ins: DecodedInstruction): ExecutionResult {
     if (ins.text) {
-      this.io.print(ins.text);
+      this.printText(ins.text);
     }
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_print_ret(ins: DecodedInstruction): ExecutionResult {
     if (ins.text) {
-      this.io.print(ins.text);
+      this.printText(ins.text);
     }
-    this.io.newLine();
+    this.printText("\n");
     return this.doReturn(1);
   }
 
@@ -736,17 +815,22 @@ export class Executor {
 
   private async op_save(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V3: save branches, V4+: save stores
-    // Full implementation requires Quetzal save format:
-    // - IFhd chunk: release, serial, checksum, initial PC
-    // - CMem chunk: compressed dynamic memory (or UMem for uncompressed)
+    // Uses Quetzal save format for portability:
+    // - IFhd chunk: release, serial, checksum, PC
+    // - UMem chunk: uncompressed dynamic memory
     // - Stks chunk: stack state
     if (this.io.save) {
-      // Placeholder: create save data with dynamic memory
-      const dynamicEnd = this.header.staticMemoryBase;
-      const saveData = new Uint8Array(dynamicEnd);
-      for (let i = 0; i < dynamicEnd; i++) {
-        saveData[i] = this.memory.readByte(i);
-      }
+      // PC to save is the address right after this instruction
+      // so restore will continue from the right place
+      const returnPC = ins.address + ins.length;
+      
+      // Create Quetzal save file
+      const saveData = createQuetzalSave(
+        this.memory,
+        this.stack.snapshot(),
+        returnPC
+      );
+      
       const saved = await this.io.save(saveData);
       if (this.version <= 3) {
         return this.branch(ins, saved);
@@ -765,19 +849,53 @@ export class Executor {
 
   private async op_restore(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V3: restore branches, V4+: restore stores
-    // Full implementation requires Quetzal save format parsing
+    // Parses Quetzal save format
     if (this.io.restore) {
       const data = await this.io.restore();
       if (data) {
-        // Placeholder: restore dynamic memory directly
-        const dynamicEnd = Math.min(data.length, this.header.staticMemoryBase);
-        for (let i = 0; i < dynamicEnd; i++) {
-          this.memory.writeByte(i, data[i]);
-        }
-        if (this.version <= 3) {
-          return this.branch(ins, true);
-        } else {
-          this.storeResult(ins, 2);
+        try {
+          // Parse Quetzal save file
+          const saveState = parseQuetzalSave(data);
+          
+          // Verify this save is for the same game
+          if (!verifySaveCompatibility(saveState, this.memory)) {
+            // Save is for a different game
+            if (this.version <= 3) {
+              return this.branch(ins, false);
+            } else {
+              this.storeResult(ins, 0);
+              return { nextPC: (ins.address + ins.length) };
+            }
+          }
+          
+          // Restore dynamic memory
+          const staticBase = this.header.staticMemoryBase;
+          const restoreSize = Math.min(saveState.dynamicMemory.length, staticBase);
+          for (let i = 0; i < restoreSize; i++) {
+            this.memory.writeByte(i, saveState.dynamicMemory[i]);
+          }
+          
+          // Restore call stack
+          this.stack.restore(saveState.callStack);
+          
+          // For V4+, store 2 to indicate successful restore
+          // The store happens in the saved context, not current
+          if (this.version >= 4) {
+            // The saved PC points to after the save instruction
+            // which has a store byte - we need to store 2 there
+            // This is handled by returning to saved PC with result stored
+            this.storeResult(ins, 2);
+          }
+          
+          // Return to the saved PC
+          return { nextPC: saveState.gameId.pc };
+        } catch {
+          // Failed to parse save file
+          if (this.version <= 3) {
+            return this.branch(ins, false);
+          } else {
+            this.storeResult(ins, 0);
+          }
         }
       } else {
         if (this.version <= 3) {
@@ -819,7 +937,7 @@ export class Executor {
   }
 
   private op_new_line(ins: DecodedInstruction): ExecutionResult {
-    this.io.newLine();
+    this.printText("\n");
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -958,13 +1076,13 @@ export class Executor {
     const zscii = this.getOperandValue(ins.operands[0]);
     // Convert ZSCII to Unicode
     const char = String.fromCharCode(zscii);
-    this.io.print(char);
+    this.printText(char);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_print_num(ins: DecodedInstruction): ExecutionResult {
     const num = toSigned16(this.getOperandValue(ins.operands[0]));
-    this.io.print(num.toString());
+    this.printText(num.toString());
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -1039,7 +1157,8 @@ export class Executor {
   }
 
   private op_erase_window(ins: DecodedInstruction): ExecutionResult {
-    const window = this.getOperandValue(ins.operands[0]);
+    // Window is signed: -1 = unsplit and clear all, -2 = clear all, 0/1 = clear specific window
+    const window = toSigned16(this.getOperandValue(ins.operands[0]));
     if (this.io.eraseWindow) {
       this.io.eraseWindow(window);
     }
@@ -1074,6 +1193,29 @@ export class Executor {
   private op_output_stream(ins: DecodedInstruction): ExecutionResult {
     const stream = toSigned16(this.getOperandValue(ins.operands[0]));
     const table = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : undefined;
+    
+    if (stream > 0) {
+      // Enable stream
+      if (stream === 3 && table !== undefined) {
+        // Stream 3 is stackable - push new table
+        this.stream3Stack.push({ table, pos: 0 });
+        // Initialize the word count at the start of the table to 0
+        this.memory.writeWord(table, 0);
+      } else {
+        this.streamEnabled[stream] = true;
+      }
+    } else if (stream < 0) {
+      // Disable stream
+      const absStream = Math.abs(stream);
+      if (absStream === 3) {
+        // Pop the stream 3 stack
+        this.stream3Stack.pop();
+      } else {
+        this.streamEnabled[absStream] = false;
+      }
+    }
+    
+    // Also notify IO adapter for streams it handles (transcript, etc.)
     if (this.io.setOutputStream) {
       this.io.setOutputStream(Math.abs(stream), stream > 0, table);
     }
@@ -1210,10 +1352,10 @@ export class Executor {
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         const byte = this.memory.readByte(zsciiText + row * (width + skip) + col);
-        this.io.print(String.fromCharCode(byte));
+        this.printText(String.fromCharCode(byte));
       }
       if (row < height - 1) {
-        this.io.newLine();
+        this.printText("\n");
       }
     }
     
@@ -1328,7 +1470,7 @@ export class Executor {
 
   private op_print_unicode(ins: DecodedInstruction): ExecutionResult {
     const charCode = this.getOperandValue(ins.operands[0]);
-    this.io.print(String.fromCodePoint(charCode));
+    this.printText(String.fromCodePoint(charCode));
     return { nextPC: (ins.address + ins.length) };
   }
 

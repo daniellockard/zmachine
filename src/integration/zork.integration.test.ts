@@ -54,8 +54,6 @@ describe('Zork 1 Integration', () => {
     }
 
     const output = io.getFullOutput();
-    console.log('=== Zork Output ===');
-    console.log(output.substring(0, 2000)); // Limit output
 
     // The opening should mention ZORK
     expect(output.toLowerCase()).toContain('zork');

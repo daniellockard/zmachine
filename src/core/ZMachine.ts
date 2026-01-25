@@ -144,6 +144,39 @@ export class ZMachine {
 
     // Initialize PC
     this._pc = this.header.initialPC;
+    
+    // Initialize interpreter info in header for V4+
+    if (this.version >= 4) {
+      // Interpreter number: 6 = IBM PC
+      // Interpreter version: ASCII character for version
+      this.header.setInterpreterInfo(6, 'Z'.charCodeAt(0));
+      
+      // Set default screen dimensions (80x25 terminal)
+      this.header.setScreenDimensions(80, 25);
+      
+      // Set FLAGS1 interpreter capabilities for V4+
+      // Bit 2: Boldface available
+      // Bit 3: Italic available
+      // Bit 4: Fixed-space style available
+      // Bit 7: Timed keyboard input available
+      this.memory.writeByte(0x01, 0b10011100); // bits 2,3,4,7
+      
+      // For V5+, also set font dimensions and colors
+      if (this.version >= 5) {
+        // Font width (1 unit per char) and height (1 unit per line)
+        this.memory.writeByte(0x26, 1); // font width
+        this.memory.writeByte(0x27, 1); // font height
+        
+        // Default colors: white on black
+        // Color 2 = black, Color 9 = white (standard Z-machine colors)
+        this.memory.writeByte(0x2C, 2);  // default background (black)
+        this.memory.writeByte(0x2D, 9);  // default foreground (white)
+        
+        // Standard revision 1.1
+        this.memory.writeByte(0x32, 1);  // major
+        this.memory.writeByte(0x33, 1);  // minor
+      }
+    }
   }
 
   /**

@@ -50,7 +50,6 @@ function findInAlphabets(
  */
 function encodeChar(
   char: string,
-  _version: ZVersion,
   alphabets: [string, string, string]
 ): number[] {
   // Check alphabets
@@ -99,7 +98,7 @@ export function encodeText(text: string, version: ZVersion): number[] {
   for (const char of lowerText) {
     if (zchars.length >= maxZChars) break;
 
-    const encoded = encodeChar(char, version, alphabets);
+    const encoded = encodeChar(char, alphabets);
     for (const zc of encoded) {
       if (zchars.length >= maxZChars) break;
       zchars.push(zc);
@@ -147,7 +146,7 @@ export function encodeToZChars(text: string, version: ZVersion): number[] {
   for (const char of lowerText) {
     if (zchars.length >= maxZChars) break;
 
-    const encoded = encodeChar(char, version, alphabets);
+    const encoded = encodeChar(char, alphabets);
     for (const zc of encoded) {
       if (zchars.length >= maxZChars) break;
       zchars.push(zc);

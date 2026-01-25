@@ -66,7 +66,7 @@ describe('Dictionary', () => {
     it('should parse dictionary header', () => {
       const dict = new Dictionary(memory, 3, 0x200);
 
-      expect(dict.separators).toBe('.,\"');
+      expect(dict.separators).toBe('.,"');
       expect(dict.entryLength).toBe(7);
       expect(dict.entryCount).toBe(5);
       expect(dict.wordBytes).toBe(4);

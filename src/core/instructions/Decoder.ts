@@ -176,11 +176,11 @@ export class Decoder {
     if (operandTypeBits === 0x03) {
       // 0OP instruction
       operandCount = OperandCount.OP0;
-      opcodeInfo = get0OPInfo(opcode);
+      opcodeInfo = get0OPInfo(opcode, this.version);
     } else {
       // 1OP instruction
       operandCount = OperandCount.OP1;
-      opcodeInfo = get1OPInfo(opcode);
+      opcodeInfo = get1OPInfo(opcode, this.version);
       
       const operandType = this.bitsToOperandType(operandTypeBits);
       const { value, bytesRead } = this.readOperand(address + offset, operandType);
