@@ -17,7 +17,13 @@
   },
   "rules": {
     "@typescript-eslint/explicit-function-return-type": "warn",
-    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "no-console": "warn"
+    "@typescript-eslint/no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "destructuredArrayIgnorePattern": "^_"
+    }],
+    "no-console": "warn",
+    "no-constant-condition": ["error", { "checkLoops": false }],
+    "no-useless-escape": "warn"
   }
 }

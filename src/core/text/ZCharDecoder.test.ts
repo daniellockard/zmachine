@@ -2,7 +2,7 @@
  * Tests for ZCharDecoder module
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ZCharDecoder } from './ZCharDecoder';
 import { Memory } from '../memory/Memory';
 

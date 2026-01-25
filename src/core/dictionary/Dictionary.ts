@@ -34,8 +34,6 @@ export interface DictionaryEntry {
  */
 export class Dictionary {
   private readonly memory: Memory;
-  private readonly version: ZVersion;
-  private readonly dictionaryAddress: ByteAddress;
 
   /** Word separator characters */
   readonly separators: string;
@@ -50,8 +48,6 @@ export class Dictionary {
 
   constructor(memory: Memory, version: ZVersion, dictionaryAddress: ByteAddress) {
     this.memory = memory;
-    this.version = version;
-    this.dictionaryAddress = dictionaryAddress;
 
     // Number of bytes for encoded words
     this.wordBytes = version <= 3 ? 4 : 6;

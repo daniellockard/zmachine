@@ -169,7 +169,7 @@ export class Decoder {
     const opcode = opcodeByte & 0x0F;
     const operandTypeBits = (opcodeByte >> 4) & 0x03;
     
-    let operands: Operand[] = [];
+    const operands: Operand[] = [];
     let operandCount: OperandCount;
     let opcodeInfo: OpcodeInfo | undefined;
     

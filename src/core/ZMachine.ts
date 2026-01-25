@@ -154,9 +154,14 @@ export class ZMachine {
    * @returns A new ZMachine instance
    */
   static load(storyData: ArrayBuffer | Uint8Array, io: IOAdapter): ZMachine {
-    const buffer = storyData instanceof Uint8Array
-      ? storyData.buffer.slice(storyData.byteOffset, storyData.byteOffset + storyData.byteLength)
-      : storyData;
+    let buffer: ArrayBuffer;
+    if (storyData instanceof Uint8Array) {
+      // Copy to a new ArrayBuffer to handle SharedArrayBuffer case
+      buffer = new ArrayBuffer(storyData.byteLength);
+      new Uint8Array(buffer).set(storyData);
+    } else {
+      buffer = storyData;
+    }
 
     return new ZMachine(buffer, io);
   }
@@ -231,7 +236,7 @@ export class ZMachine {
    * 
    * @param input The input text
    */
-  async provideInput(input: string): Promise<void> {
+  async provideInput(_input: string): Promise<void> {
     if (this._state !== RunState.WaitingForInput) {
       throw new Error('Not waiting for input');
     }
@@ -247,9 +252,6 @@ export class ZMachine {
    * Restart the game
    */
   restart(): void {
-    // Restore original memory state
-    const newMemory = new Memory(this.originalStory.slice(0));
-
     // Re-copy dynamic memory from original
     const dynamicEnd = this.header.staticMemoryBase;
     for (let i = 0; i < dynamicEnd; i++) {

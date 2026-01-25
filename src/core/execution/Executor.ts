@@ -783,7 +783,7 @@ export class Executor {
   private async op_sread(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V1-3 read opcode
     const textBuffer = this.getOperandValue(ins.operands[0]);
-    const parseBuffer = this.getOperandValue(ins.operands[1]);
+    const _parseBuffer = this.getOperandValue(ins.operands[1]);
     
     const maxLen = this.memory.readByte(textBuffer);
     const result = await this.io.readLine(maxLen);
@@ -819,7 +819,7 @@ export class Executor {
     return { nextPC: (ins.address + ins.length) };
   }
 
-  private randomSeed: number = Date.now();
+  private _randomSeed: number = Date.now();
   private randomMode: 'random' | 'predictable' = 'random';
   private predictableCounter: number = 0;
 
@@ -830,11 +830,11 @@ export class Executor {
       // Seed the random number generator
       if (range === 0) {
         this.randomMode = 'random';
-        this.randomSeed = Date.now();
+        this._randomSeed = Date.now();
       } else {
         this.randomMode = 'predictable';
         this.predictableCounter = 0;
-        this.randomSeed = -range;
+        this._randomSeed = -range;
       }
       this.storeResult(ins, 0);
     } else {

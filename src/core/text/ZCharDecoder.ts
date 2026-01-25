@@ -20,8 +20,6 @@ import { zsciiToUnicode } from './ZSCII';
 import {
   getAlphabetChar,
   getShiftedAlphabet,
-  isShiftChar,
-  isAbbreviationChar,
   getAbbreviationIndex,
 } from './Alphabet';
 

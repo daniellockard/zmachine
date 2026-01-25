@@ -50,7 +50,7 @@ function findInAlphabets(
  */
 function encodeChar(
   char: string,
-  version: ZVersion,
+  _version: ZVersion,
   alphabets: [string, string, string]
 ): number[] {
   // Check alphabets

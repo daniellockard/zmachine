@@ -130,6 +130,8 @@ export interface DecodedInstruction {
 export interface ExecutionResult {
   /** The next program counter address */
   nextPC?: ByteAddress;
+  /** If set, jump to this address instead of using nextPC */
+  jumpTo?: ByteAddress;
   /** If true, execution should halt (quit, fatal error) */
   halted?: boolean;
   /** If set, an error occurred during execution */
