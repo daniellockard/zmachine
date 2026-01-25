@@ -24,6 +24,11 @@ import { Variables } from '../variables/Variables';
 import { toSigned16, unpackRoutineAddress } from '../memory/AddressUtils';
 import { ZCharDecoder } from '../text/ZCharDecoder';
 import { IOAdapter } from '../../io/IOAdapter';
+import { ObjectTable } from '../objects/ObjectTable';
+import { Properties } from '../objects/Properties';
+import { Dictionary } from '../dictionary/Dictionary';
+import { Tokenizer } from '../dictionary/Tokenizer';
+import { encodeText } from '../text/ZCharEncoder';
 
 /**
  * Handler function for an opcode
@@ -57,6 +62,10 @@ export class Executor {
   readonly version: ZVersion;
   readonly io: IOAdapter;
   readonly textDecoder: ZCharDecoder;
+  readonly objectTable: ObjectTable;
+  readonly properties: Properties;
+  readonly dictionary: Dictionary;
+  readonly tokenizer: Tokenizer;
 
   private handlers: Map<string, OpcodeHandler> = new Map();
 
@@ -67,7 +76,11 @@ export class Executor {
     variables: Variables,
     version: ZVersion,
     io: IOAdapter,
-    textDecoder: ZCharDecoder
+    textDecoder: ZCharDecoder,
+    objectTable?: ObjectTable,
+    properties?: Properties,
+    dictionary?: Dictionary,
+    tokenizer?: Tokenizer
   ) {
     this.memory = memory;
     this.header = header;
@@ -76,6 +89,12 @@ export class Executor {
     this.version = version;
     this.io = io;
     this.textDecoder = textDecoder;
+    
+    // Create object table if not provided
+    this.objectTable = objectTable ?? new ObjectTable(memory, version, header.objectTableAddress);
+    this.properties = properties ?? new Properties(memory, version, this.objectTable);
+    this.dictionary = dictionary ?? new Dictionary(memory, version, header.dictionaryAddress);
+    this.tokenizer = tokenizer ?? new Tokenizer(memory, version, this.dictionary);
 
     this.registerHandlers();
   }
@@ -371,8 +390,11 @@ export class Executor {
   }
 
   private op_jin(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
-    return this.branch(ins, false);
+    // jin obj1 obj2 ?(label) - jump if obj1's parent is obj2
+    const obj1 = this.getOperandValue(ins.operands[0]);
+    const obj2 = this.getOperandValue(ins.operands[1]);
+    const parent = this.objectTable.getParent(obj1);
+    return this.branch(ins, parent === obj2);
   }
 
   private op_test(ins: DecodedInstruction): ExecutionResult {
@@ -396,17 +418,26 @@ export class Executor {
   }
 
   private op_test_attr(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object attributes
-    return this.branch(ins, false);
+    // test_attr object attribute ?(label) - jump if object has attribute
+    const obj = this.getOperandValue(ins.operands[0]);
+    const attr = this.getOperandValue(ins.operands[1]);
+    const hasAttr = this.objectTable.testAttribute(obj, attr);
+    return this.branch(ins, hasAttr);
   }
 
   private op_set_attr(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object attributes
+    // set_attr object attribute - set attribute on object
+    const obj = this.getOperandValue(ins.operands[0]);
+    const attr = this.getOperandValue(ins.operands[1]);
+    this.objectTable.setAttribute(obj, attr);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_clear_attr(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object attributes
+    // clear_attr object attribute - clear attribute on object
+    const obj = this.getOperandValue(ins.operands[0]);
+    const attr = this.getOperandValue(ins.operands[1]);
+    this.objectTable.clearAttribute(obj, attr);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -419,7 +450,10 @@ export class Executor {
   }
 
   private op_insert_obj(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
+    // insert_obj object destination - make object first child of destination
+    const obj = this.getOperandValue(ins.operands[0]);
+    const dest = this.getOperandValue(ins.operands[1]);
+    this.objectTable.insertObject(obj, dest);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -440,20 +474,29 @@ export class Executor {
   }
 
   private op_get_prop(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object properties
-    this.storeResult(ins, 0);
+    // get_prop object property -> (result) - get property value or default
+    const obj = this.getOperandValue(ins.operands[0]);
+    const prop = this.getOperandValue(ins.operands[1]);
+    const value = this.properties.getProperty(obj, prop);
+    this.storeResult(ins, value);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_get_prop_addr(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object properties
-    this.storeResult(ins, 0);
+    // get_prop_addr object property -> (result) - get address of property data
+    const obj = this.getOperandValue(ins.operands[0]);
+    const prop = this.getOperandValue(ins.operands[1]);
+    const addr = this.properties.getPropertyAddress(obj, prop);
+    this.storeResult(ins, addr);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_get_next_prop(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object properties
-    this.storeResult(ins, 0);
+    // get_next_prop object property -> (result) - get next property number
+    const obj = this.getOperandValue(ins.operands[0]);
+    const prop = this.getOperandValue(ins.operands[1]);
+    const nextProp = this.properties.getNextProperty(obj, prop);
+    this.storeResult(ins, nextProp);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -524,26 +567,35 @@ export class Executor {
   }
 
   private op_get_sibling(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
-    this.storeResult(ins, 0);
-    return this.branch(ins, false);
+    // get_sibling object -> (result) ?(label) - get sibling, branch if non-zero
+    const obj = this.getOperandValue(ins.operands[0]);
+    const sibling = this.objectTable.getSibling(obj);
+    this.storeResult(ins, sibling);
+    return this.branch(ins, sibling !== 0);
   }
 
   private op_get_child(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
-    this.storeResult(ins, 0);
-    return this.branch(ins, false);
+    // get_child object -> (result) ?(label) - get first child, branch if non-zero
+    const obj = this.getOperandValue(ins.operands[0]);
+    const child = this.objectTable.getChild(obj);
+    this.storeResult(ins, child);
+    return this.branch(ins, child !== 0);
   }
 
   private op_get_parent(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
-    this.storeResult(ins, 0);
+    // get_parent object -> (result) - get parent object
+    const obj = this.getOperandValue(ins.operands[0]);
+    const parent = this.objectTable.getParent(obj);
+    this.storeResult(ins, parent);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_get_prop_len(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object properties
-    this.storeResult(ins, 0);
+    // get_prop_len property-address -> (result) - get length of property data
+    const propAddr = this.getOperandValue(ins.operands[0]);
+    // Special case: address 0 returns length 0
+    const length = propAddr === 0 ? 0 : this.properties.getPropertyLength(propAddr);
+    this.storeResult(ins, length);
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -572,12 +624,20 @@ export class Executor {
   }
 
   private op_remove_obj(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object tree
+    // remove_obj object - remove object from its parent's child list
+    const obj = this.getOperandValue(ins.operands[0]);
+    this.objectTable.removeFromParent(obj);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_print_obj(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object names
+    // print_obj object - print object's short name
+    const obj = this.getOperandValue(ins.operands[0]);
+    const nameInfo = this.objectTable.getShortNameAddress(obj);
+    if (nameInfo.lengthBytes > 0) {
+      const result = this.textDecoder.decode(nameInfo.address);
+      this.io.print(result.text);
+    }
     return { nextPC: (ins.address + ins.length) };
   }
 
@@ -660,9 +720,18 @@ export class Executor {
 
   private async op_save(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V3: save branches, V4+: save stores
+    // Full implementation requires Quetzal save format:
+    // - IFhd chunk: release, serial, checksum, initial PC
+    // - CMem chunk: compressed dynamic memory (or UMem for uncompressed)
+    // - Stks chunk: stack state
     if (this.io.save) {
-      // TODO: Create save data
-      const saved = await this.io.save(new Uint8Array(0));
+      // Placeholder: create save data with dynamic memory
+      const dynamicEnd = this.header.staticMemoryBase;
+      const saveData = new Uint8Array(dynamicEnd);
+      for (let i = 0; i < dynamicEnd; i++) {
+        saveData[i] = this.memory.readByte(i);
+      }
+      const saved = await this.io.save(saveData);
       if (this.version <= 3) {
         return this.branch(ins, saved);
       } else {
@@ -680,10 +749,15 @@ export class Executor {
 
   private async op_restore(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V3: restore branches, V4+: restore stores
+    // Full implementation requires Quetzal save format parsing
     if (this.io.restore) {
       const data = await this.io.restore();
       if (data) {
-        // TODO: Restore game state
+        // Placeholder: restore dynamic memory directly
+        const dynamicEnd = Math.min(data.length, this.header.staticMemoryBase);
+        for (let i = 0; i < dynamicEnd; i++) {
+          this.memory.writeByte(i, data[i]);
+        }
         if (this.version <= 3) {
           return this.branch(ins, true);
         } else {
@@ -735,8 +809,27 @@ export class Executor {
 
   private op_show_status(ins: DecodedInstruction): ExecutionResult {
     if (this.io.showStatusLine) {
-      // TODO: Get actual status from game state
-      this.io.showStatusLine('Unknown', 0, 0, false);
+      // Get location object (global var 0 = var 16)
+      const locationObj = this.variables.load(16);
+      
+      // Get location name
+      let locationName = 'Unknown';
+      if (locationObj !== 0) {
+        const nameInfo = this.objectTable.getShortNameAddress(locationObj);
+        if (nameInfo.lengthBytes > 0) {
+          const result = this.textDecoder.decode(nameInfo.address);
+          locationName = result.text;
+        }
+      }
+      
+      // Get score/time values (global vars 1 and 2 = vars 17 and 18)
+      const scoreOrHours = toSigned16(this.variables.load(17));
+      const turnsOrMinutes = this.variables.load(18);
+      
+      // Check if time game (bit 1 of flags1)
+      const isTimeGame = (this.header.flags1 & 0x02) !== 0;
+      
+      this.io.showStatusLine(locationName, scoreOrHours, turnsOrMinutes, isTimeGame);
     }
     return { nextPC: (ins.address + ins.length) };
   }
@@ -776,33 +869,73 @@ export class Executor {
   }
 
   private op_put_prop(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement object properties
+    // put_prop object property value - set property value
+    const obj = this.getOperandValue(ins.operands[0]);
+    const prop = this.getOperandValue(ins.operands[1]);
+    const value = this.getOperandValue(ins.operands[2]);
+    this.properties.putProperty(obj, prop, value);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private async op_sread(ins: DecodedInstruction): Promise<ExecutionResult> {
-    // V1-3 read opcode
+    // V1-3 read opcode: sread text parse
     const textBuffer = this.getOperandValue(ins.operands[0]);
-    const _parseBuffer = this.getOperandValue(ins.operands[1]);
+    const parseBuffer = this.getOperandValue(ins.operands[1]);
     
     const maxLen = this.memory.readByte(textBuffer);
     const result = await this.io.readLine(maxLen);
     
-    // Store text in buffer
+    // Store text in buffer (lowercase, starting at byte 1, null-terminated)
     const text = result.text.toLowerCase();
     for (let i = 0; i < text.length; i++) {
       this.memory.writeByte(textBuffer + 1 + i, text.charCodeAt(i));
     }
     this.memory.writeByte(textBuffer + 1 + text.length, 0);
     
-    // TODO: Tokenize input
+    // Tokenize input into parse buffer
+    this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
     
     return { nextPC: (ins.address + ins.length) };
   }
 
   private async op_aread(ins: DecodedInstruction): Promise<ExecutionResult> {
-    // V4+ read opcode (same as sread for now)
-    return this.op_sread(ins);
+    // V4+ read opcode: aread text parse time routine -> (result)
+    // In V5+, byte 1 of text buffer stores actual character count
+    const textBuffer = this.getOperandValue(ins.operands[0]);
+    const parseBuffer = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : 0;
+    // time and routine operands are for timed input (not implemented)
+    
+    const maxLen = this.memory.readByte(textBuffer);
+    const result = await this.io.readLine(maxLen);
+    
+    // Store text in buffer (lowercase)
+    const text = result.text.toLowerCase();
+    
+    if (this.version >= 5) {
+      // V5+: byte 1 = length, text starts at byte 2
+      this.memory.writeByte(textBuffer + 1, text.length);
+      for (let i = 0; i < text.length; i++) {
+        this.memory.writeByte(textBuffer + 2 + i, text.charCodeAt(i));
+      }
+    } else {
+      // V4: text at byte 1, null-terminated
+      for (let i = 0; i < text.length; i++) {
+        this.memory.writeByte(textBuffer + 1 + i, text.charCodeAt(i));
+      }
+      this.memory.writeByte(textBuffer + 1 + text.length, 0);
+    }
+    
+    // Tokenize if parse buffer provided
+    if (parseBuffer !== 0) {
+      this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
+    }
+    
+    // V5+ returns the terminating character (13 = newline)
+    if (this.version >= 5) {
+      this.storeResult(ins, 13); // Return newline as terminator
+    }
+    
+    return { nextPC: (ins.address + ins.length) };
   }
 
   private op_print_char(ins: DecodedInstruction): ExecutionResult {
@@ -819,9 +952,19 @@ export class Executor {
     return { nextPC: (ins.address + ins.length) };
   }
 
-  private _randomSeed: number = Date.now();
+  private randomSeed: number = Date.now();
   private randomMode: 'random' | 'predictable' = 'random';
-  private predictableCounter: number = 0;
+
+  /**
+   * Simple Linear Congruential Generator for predictable random mode
+   * Uses the same constants as glibc
+   */
+  private nextPredictableRandom(): number {
+    // LCG: seed = (a * seed + c) mod m
+    // Using glibc constants: a=1103515245, c=12345, m=2^31
+    this.randomSeed = ((this.randomSeed * 1103515245 + 12345) >>> 0) & 0x7FFFFFFF;
+    return this.randomSeed;
+  }
 
   private op_random(ins: DecodedInstruction): ExecutionResult {
     const range = toSigned16(this.getOperandValue(ins.operands[0]));
@@ -830,11 +973,10 @@ export class Executor {
       // Seed the random number generator
       if (range === 0) {
         this.randomMode = 'random';
-        this._randomSeed = Date.now();
+        this.randomSeed = Date.now();
       } else {
         this.randomMode = 'predictable';
-        this.predictableCounter = 0;
-        this._randomSeed = -range;
+        this.randomSeed = -range; // Use negative as seed
       }
       this.storeResult(ins, 0);
     } else {
@@ -843,8 +985,8 @@ export class Executor {
       if (this.randomMode === 'random') {
         result = Math.floor(Math.random() * range) + 1;
       } else {
-        this.predictableCounter = (this.predictableCounter + 1) % range;
-        result = this.predictableCounter + 1;
+        // Use seeded PRNG for predictable mode
+        result = (this.nextPredictableRandom() % range) + 1;
       }
       this.storeResult(ins, result);
     }
@@ -980,12 +1122,40 @@ export class Executor {
   }
 
   private op_tokenise(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement tokenization
+    // tokenise text parse dictionary flag
+    // Tokenize text buffer into parse buffer, optionally using custom dictionary
+    const textBuffer = this.getOperandValue(ins.operands[0]);
+    const parseBuffer = this.getOperandValue(ins.operands[1]);
+    const dictionaryAddr = ins.operands.length > 2 ? this.getOperandValue(ins.operands[2]) : 0;
+    const skipUnknown = ins.operands.length > 3 ? this.getOperandValue(ins.operands[3]) !== 0 : false;
+    
+    this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer, dictionaryAddr, skipUnknown);
     return { nextPC: (ins.address + ins.length) };
   }
 
   private op_encode_text(ins: DecodedInstruction): ExecutionResult {
-    // TODO: Implement text encoding
+    // encode_text zscii-text length from coded-text
+    // Encode a string from ZSCII to dictionary format
+    const zsciiText = this.getOperandValue(ins.operands[0]);
+    const length = this.getOperandValue(ins.operands[1]);
+    const from = this.getOperandValue(ins.operands[2]);
+    const codedText = this.getOperandValue(ins.operands[3]);
+    
+    // Read the ZSCII characters
+    let text = '';
+    for (let i = 0; i < length; i++) {
+      const c = this.memory.readByte(zsciiText + from + i);
+      text += String.fromCharCode(c);
+    }
+    
+    // Encode to Z-characters (dictionary format)
+    const encoded = encodeText(text, this.version);
+    
+    // Write encoded bytes (4 bytes for V3, 6 for V4+)
+    for (let i = 0; i < encoded.length; i++) {
+      this.memory.writeByte(codedText + i, encoded[i]);
+    }
+    
     return { nextPC: (ins.address + ins.length) };
   }
 

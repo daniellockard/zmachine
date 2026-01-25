@@ -234,17 +234,21 @@ export class ZMachine {
   /**
    * Provide input when waiting for it
    * 
-   * @param input The input text
+   * Note: This is an alternative push-based API for input.
+   * The primary path is through IOAdapter.readLine() which is
+   * called by the read opcodes and awaited asynchronously.
+   * 
+   * @param _input The input text (currently unused - reserved for future use)
    */
   async provideInput(_input: string): Promise<void> {
     if (this._state !== RunState.WaitingForInput) {
       throw new Error('Not waiting for input');
     }
 
-    // TODO: Implement input handling
-    // This will need to write to text/parse buffers
-    // and resume execution
-
+    // The actual input handling happens through IOAdapter.readLine()
+    // which the read opcode awaits. This method is reserved for
+    // potential push-based input scenarios.
+    
     this._state = RunState.Running;
   }
 
