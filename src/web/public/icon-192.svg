@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#0a0a0a"/>
+  <rect x="16" y="16" width="160" height="160" rx="16" fill="#004400"/>
+  <text x="96" y="120" text-anchor="middle" font-family="monospace" font-size="80" font-weight="bold" fill="#00ff00">Z</text>
+  <text x="96" y="156" text-anchor="middle" font-family="monospace" font-size="20" fill="#00cc00">&gt;_</text>
+</svg>

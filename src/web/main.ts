@@ -10,6 +10,13 @@ import { ZMachine } from '../core/ZMachine';
 import { WebIOAdapter } from './WebIOAdapter';
 import type { ReadLineResult } from '../io/IOAdapter';
 
+// Register service worker for PWA/offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {
+    // Service worker registration failed - offline mode won't work
+  });
+}
+
 // DOM Elements
 const outputEl = document.getElementById('output') as HTMLElement;
 const inputEl = document.getElementById('input') as HTMLInputElement;
