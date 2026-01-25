@@ -279,6 +279,89 @@ html, body {
   .file-drop {
     padding: 24px 16px;
   }
+  
+  /* Show quick commands on mobile */
+  .quick-commands:not(.hidden) {
+    display: flex !important;
+  }
+  
+  /* Compact toolbar on mobile */
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  
+  .toolbar button {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+  
+  .toolbar button span.label {
+    display: none;
+  }
+  
+  .toolbar-separator {
+    display: none;
+  }
+  
+  /* Larger touch targets */
+  .input-area {
+    padding: 12px;
+  }
+  
+  .input {
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+  
+  /* Status line compact */
+  .status-line {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+  }
+}
+
+/* Quick Commands Bar */
+.quick-commands {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--input-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.quick-commands.hidden {
+  display: none !important;
+}
+
+.quick-commands button {
+  background: var(--status-bg);
+  border: 1px solid var(--border);
+  color: var(--text-color);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.quick-commands button:hover,
+.quick-commands button:active {
+  background: var(--accent);
+  color: var(--bg-color);
+}
+
+/* Desktop: show quick commands if explicitly enabled */
+@media (min-width: 601px) {
+  .quick-commands.show-desktop {
+    display: flex;
+  }
 }
 
 /* Toolbar */

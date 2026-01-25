@@ -144,7 +144,7 @@ src/
 ### Tier 2 - Advanced Features
 - [x] Input recording/playback
 - [x] Sound effects playback (beep)
-- [ ] Mobile-friendly touch interface
+- [x] Mobile-friendly touch interface
 
 ### Tier 3 - V6 Support (Low Priority)
 - [ ] Picture display opcodes

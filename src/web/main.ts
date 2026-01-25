@@ -66,8 +66,9 @@ async function loadStory(data: ArrayBuffer): Promise<void> {
     // Initialize IO with version
     io.initialize(machine.version);
     
-    // Show toolbar
+    // Show toolbar and quick commands
     showToolbar();
+    showQuickCommands();
 
     // Start the game
     await startGame(machine);
@@ -220,6 +221,7 @@ const btnPlayback = document.getElementById('btn-playback') as HTMLButtonElement
 const btnHelp = document.getElementById('btn-help') as HTMLButtonElement;
 const helpModal = document.getElementById('help-modal') as HTMLElement;
 const btnCloseHelp = document.getElementById('btn-close-help') as HTMLButtonElement;
+const quickCommandsEl = document.getElementById('quick-commands') as HTMLElement;
 
 // Current IO adapter (set when game loads)
 let currentIO: WebIOAdapter | null = null;
@@ -229,6 +231,37 @@ let currentIO: WebIOAdapter | null = null;
  */
 function showToolbar(): void {
   toolbarEl.classList.remove('hidden');
+}
+
+/**
+ * Show quick commands bar (visible on mobile by default)
+ */
+function showQuickCommands(): void {
+  quickCommandsEl.classList.remove('hidden');
+}
+
+/**
+ * Submit a command programmatically (for quick command buttons)
+ */
+async function submitCommand(cmd: string): Promise<void> {
+  if (!machine || inputEl.disabled) return;
+  
+  // Set input value and trigger enter
+  inputEl.value = cmd;
+  const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+  inputEl.dispatchEvent(event);
+}
+
+/**
+ * Setup quick command buttons
+ */
+function setupQuickCommands(): void {
+  quickCommandsEl.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' && target.dataset.cmd) {
+      submitCommand(target.dataset.cmd);
+    }
+  });
 }
 
 /**
@@ -374,6 +407,7 @@ function setupKeyboardShortcuts(): void {
 document.addEventListener('DOMContentLoaded', () => {
   setupFileDrop();
   setupToolbar();
+  setupQuickCommands();
   setupKeyboardShortcuts();
 });
 
