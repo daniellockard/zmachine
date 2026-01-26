@@ -240,4 +240,68 @@ describe('Stack', () => {
       expect(stack.depth).toBe(0);
     });
   });
+
+  describe('serialize and deserialize', () => {
+    it('should serialize and deserialize stack with locals and evalStack', () => {
+      stack.initialize(3);
+      stack.setLocal(0, 10);
+      stack.setLocal(1, 20);
+      stack.setLocal(2, 30);
+      stack.push(100);
+      stack.push(101);
+
+      stack.pushFrame(0x1000, 0x10, 2, 1);
+      stack.setLocal(0, 40);
+      stack.setLocal(1, 50);
+      stack.push(200);
+      stack.push(201);
+      stack.push(202);
+
+      const serialized = stack.serialize();
+
+      // Create a new stack and deserialize
+      const newStack = new Stack();
+      newStack.deserialize(serialized);
+
+      // Verify the restored stack
+      expect(newStack.depth).toBe(2);
+      expect(newStack.currentFrame.returnPC).toBe(0x1000);
+      expect(newStack.currentFrame.storeVariable).toBe(0x10);
+      expect(newStack.currentFrame.argumentCount).toBe(1);
+
+      // Verify locals in current frame
+      expect(newStack.getLocal(0)).toBe(40);
+      expect(newStack.getLocal(1)).toBe(50);
+
+      // Verify eval stack in current frame
+      expect(newStack.pop()).toBe(202);
+      expect(newStack.pop()).toBe(201);
+      expect(newStack.pop()).toBe(200);
+
+      // Pop to previous frame and verify
+      newStack.popFrame();
+      expect(newStack.getLocal(0)).toBe(10);
+      expect(newStack.getLocal(1)).toBe(20);
+      expect(newStack.getLocal(2)).toBe(30);
+      expect(newStack.pop()).toBe(101);
+      expect(newStack.pop()).toBe(100);
+    });
+
+    it('should handle undefined storeVariable during serialize/deserialize', () => {
+      stack.initialize(2);
+      stack.setLocal(0, 5);
+      stack.push(50);
+
+      // Initial frame has undefined storeVariable
+      const serialized = stack.serialize();
+      
+      const newStack = new Stack();
+      newStack.deserialize(serialized);
+
+      expect(newStack.depth).toBe(1);
+      expect(newStack.currentFrame.storeVariable).toBeUndefined();
+      expect(newStack.getLocal(0)).toBe(5);
+      expect(newStack.pop()).toBe(50);
+    });
+  });
 });

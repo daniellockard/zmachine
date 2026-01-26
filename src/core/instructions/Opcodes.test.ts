@@ -203,4 +203,70 @@ describe('Opcodes', () => {
       expect(get1OPInfo(0x0F)!.maxVersion).toBe(4); // not (1OP form)
     });
   });
+
+  describe('0OP version-specific behavior', () => {
+    it('should return V4 save with stores=true for version 4', () => {
+      const info = get0OPInfo(0x05, 4);
+      expect(info).toBeDefined();
+      expect(info!.name).toBe('save');
+      expect(info!.stores).toBe(true);
+      expect(info!.minVersion).toBe(4);
+      expect(info!.maxVersion).toBe(4);
+    });
+
+    it('should return V4 restore with stores=true for version 4', () => {
+      const info = get0OPInfo(0x06, 4);
+      expect(info).toBeDefined();
+      expect(info!.name).toBe('restore');
+      expect(info!.stores).toBe(true);
+      expect(info!.minVersion).toBe(4);
+      expect(info!.maxVersion).toBe(4);
+    });
+
+    it('should return undefined for save (0x05) as 0OP in V5+', () => {
+      expect(get0OPInfo(0x05, 5)).toBeUndefined();
+      expect(get0OPInfo(0x05, 6)).toBeUndefined();
+      expect(get0OPInfo(0x05, 7)).toBeUndefined();
+      expect(get0OPInfo(0x05, 8)).toBeUndefined();
+    });
+
+    it('should return undefined for restore (0x06) as 0OP in V5+', () => {
+      expect(get0OPInfo(0x06, 5)).toBeUndefined();
+      expect(get0OPInfo(0x06, 6)).toBeUndefined();
+      expect(get0OPInfo(0x06, 7)).toBeUndefined();
+      expect(get0OPInfo(0x06, 8)).toBeUndefined();
+    });
+
+    it('should return catch instead of pop (0x09) in V5+', () => {
+      // V3 should return pop
+      const popInfo = get0OPInfo(0x09, 3);
+      expect(popInfo).toBeDefined();
+      expect(popInfo!.name).toBe('pop');
+      expect(popInfo!.stores).toBe(false);
+
+      // V5+ should return catch
+      const catchInfo = get0OPInfo(0x09, 5);
+      expect(catchInfo).toBeDefined();
+      expect(catchInfo!.name).toBe('catch');
+      expect(catchInfo!.stores).toBe(true);
+      expect(catchInfo!.minVersion).toBe(5);
+    });
+  });
+
+  describe('1OP version-specific behavior', () => {
+    it('should return call_1n instead of not (0x0F) in V5+', () => {
+      // V3 should return not
+      const notInfo = get1OPInfo(0x0F, 3);
+      expect(notInfo).toBeDefined();
+      expect(notInfo!.name).toBe('not');
+      expect(notInfo!.stores).toBe(true);
+      expect(notInfo!.maxVersion).toBe(4);
+
+      // V5+ should return call_1n
+      const callInfo = get1OPInfo(0x0F, 5);
+      expect(callInfo).toBeDefined();
+      expect(callInfo!.name).toBe('call_1n');
+      expect(callInfo!.minVersion).toBe(5);
+    });
+  });
 });

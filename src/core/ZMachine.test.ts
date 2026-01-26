@@ -2,7 +2,7 @@
  * Tests for ZMachine core class
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ZMachine, RunState } from './ZMachine';
 import { TestIOAdapter } from '../io/TestIOAdapter';
 
@@ -343,6 +343,81 @@ describe('ZMachine', () => {
       
       zm.restart();
       expect(zm.state).toBe(RunState.Stopped);
+    });
+  });
+
+  describe('step', () => {
+    it('should set state to WaitingForInput when instruction returns waitingForInput', async () => {
+      const zm = new ZMachine(storyData, io);
+      
+      // Mock executor to return waitingForInput result
+      vi.spyOn(zm.executor, 'execute').mockResolvedValueOnce({
+        waitingForInput: true,
+      });
+      
+      // Mock decoder to return a valid instruction
+      vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
+        opcode: 0,
+        form: 'short',
+        operandCount: 0,
+        operands: [],
+        address: zm.pc,
+        length: 1,
+      });
+      
+      (zm as any)._state = RunState.Running;
+      await zm.step();
+      
+      expect(zm.state).toBe(RunState.WaitingForInput);
+    });
+
+    it('should update PC to jumpTo address when instruction returns jumpTo', async () => {
+      const zm = new ZMachine(storyData, io);
+      const jumpTarget = 0x2000;
+      
+      // Mock executor to return jumpTo result
+      vi.spyOn(zm.executor, 'execute').mockResolvedValueOnce({
+        jumpTo: jumpTarget,
+      });
+      
+      // Mock decoder to return a valid instruction
+      vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
+        opcode: 0,
+        form: 'short',
+        operandCount: 0,
+        operands: [],
+        address: zm.pc,
+        length: 1,
+      });
+      
+      (zm as any)._state = RunState.Running;
+      await zm.step();
+      
+      expect(zm.pc).toBe(jumpTarget);
+    });
+
+    it('should fallback to advancing PC by instruction length when neither nextPC nor jumpTo is set', async () => {
+      const zm = new ZMachine(storyData, io);
+      const initialPC = zm.pc;
+      const instructionLength = 3;
+      
+      // Mock executor to return empty result (no nextPC, no jumpTo)
+      vi.spyOn(zm.executor, 'execute').mockResolvedValueOnce({});
+      
+      // Mock decoder to return a valid instruction with known length
+      vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
+        opcode: 0,
+        form: 'short',
+        operandCount: 0,
+        operands: [],
+        address: initialPC,
+        length: instructionLength,
+      });
+      
+      (zm as any)._state = RunState.Running;
+      await zm.step();
+      
+      expect(zm.pc).toBe(initialPC + instructionLength);
     });
   });
 });

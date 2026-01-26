@@ -124,6 +124,37 @@ describe('Dictionary', () => {
       expect(entry.address).toBeGreaterThan(0);
       expect(entry.index).toBe(2); // "north" is 3rd word (index 2)
     });
+
+    it('should find word before middle using binary search (high = mid - 1)', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+      // Dictionary has ['go', 'look', 'north', 'take', 'west']
+      // Middle is 'north' (index 2), 'go' (index 0) is before it
+      const encoded = encodeText('go', 3);
+
+      const entry = dict.lookupEntry(encoded);
+      expect(entry.address).toBeGreaterThan(0);
+      expect(entry.index).toBe(0);
+    });
+
+    it('should find word after middle using binary search (low = mid + 1)', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+      // Dictionary has ['go', 'look', 'north', 'take', 'west']
+      // Middle is 'north' (index 2), 'west' (index 4) is after it
+      const encoded = encodeText('west', 3);
+
+      const entry = dict.lookupEntry(encoded);
+      expect(entry.address).toBeGreaterThan(0);
+      expect(entry.index).toBe(4);
+    });
+
+    it('should return not found entry for non-existent word', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+      const encoded = encodeText('xyzzy', 3);
+
+      const entry = dict.lookupEntry(encoded);
+      expect(entry.address).toBe(0);
+      expect(entry.index).toBe(-1);
+    });
   });
 
   describe('iteration', () => {

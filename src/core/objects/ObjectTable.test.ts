@@ -173,6 +173,12 @@ describe('ObjectTable', () => {
       expect(() => table.testAttribute(1, 32)).toThrow();
       expect(() => table.testAttribute(1, -1)).toThrow();
     });
+
+    it('should reject invalid attribute numbers in clearAttribute', () => {
+      const table = new ObjectTable(memory, 3, 0x100);
+      expect(() => table.clearAttribute(1, 32)).toThrow('Invalid attribute number: 32');
+      expect(() => table.clearAttribute(1, -1)).toThrow('Invalid attribute number: -1');
+    });
   });
 
   describe('tree manipulation', () => {
@@ -239,6 +245,13 @@ describe('ObjectTable', () => {
       const table = new ObjectTable(memory, 3, 0x100);
       expect(table.getPropertyDefault(1)).toBe(10);
       expect(table.getPropertyDefault(10)).toBe(100);
+    });
+
+    it('should reject invalid property numbers in getPropertyDefault', () => {
+      const table = new ObjectTable(memory, 3, 0x100);
+      expect(() => table.getPropertyDefault(0)).toThrow('Invalid property number: 0');
+      expect(() => table.getPropertyDefault(32)).toThrow('Invalid property number: 32');
+      expect(() => table.getPropertyDefault(-1)).toThrow('Invalid property number: -1');
     });
   });
 });
@@ -356,6 +369,16 @@ describe('Properties', () => {
       props.putProperty(1, 10, 0xFF);
       expect(props.getProperty(1, 10)).toBe(0xFF);
     });
+
+    it('should throw when putting property with length > 2', () => {
+      const objTable = new ObjectTable(memory, 3, 0x100);
+      const props = new Properties(memory, 3, objTable);
+
+      // Property 5 has length 4, which is too long for put_prop
+      expect(() => props.putProperty(1, 5, 0x1234)).toThrow(
+        'Cannot put_prop on property of length 4'
+      );
+    });
   });
 
   describe('property enumeration', () => {
@@ -381,6 +404,16 @@ describe('Properties', () => {
 
       const last = props.getNextProperty(1, 5);
       expect(last).toBe(0);
+    });
+
+    it('should throw when getting next property for non-existent property', () => {
+      const objTable = new ObjectTable(memory, 3, 0x100);
+      const props = new Properties(memory, 3, objTable);
+
+      // Property 25 doesn't exist on object 1
+      expect(() => props.getNextProperty(1, 25)).toThrow(
+        'Property 25 not found on object 1'
+      );
     });
   });
 

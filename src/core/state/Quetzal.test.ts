@@ -236,8 +236,120 @@ describe('Quetzal', () => {
       const shortData = new Uint8Array([1, 2, 3, 4, 5]);
       expect(() => parseQuetzalSave(shortData)).toThrow('Save file too short');
     });
+
+    it('should reject save missing memory chunk', () => {
+      // Create a Quetzal file with IFhd and Stks but no CMem/UMem
+      const chunks: Uint8Array[] = [];
+      
+      // IFhd chunk (13 bytes)
+      const ifhd = new Uint8Array(13);
+      ifhd[0] = 1; // release high
+      ifhd[1] = 0; // release low  
+      // Serial bytes 2-7 = '123456'
+      ifhd[2] = 0x31; ifhd[3] = 0x32; ifhd[4] = 0x33;
+      ifhd[5] = 0x34; ifhd[6] = 0x35; ifhd[7] = 0x36;
+      // Checksum bytes 8-9
+      ifhd[8] = 0xAB; ifhd[9] = 0xCD;
+      // PC bytes 10-12
+      ifhd[10] = 0x00; ifhd[11] = 0x50; ifhd[12] = 0x00;
+      
+      chunks.push(createChunk('IFhd', ifhd));
+      
+      // Stks chunk (minimal empty stack frame)
+      const stks = new Uint8Array(8);
+      // Empty main frame: 3-byte PC (0), flags (0), store var (0), args (0), eval count (0)
+      chunks.push(createChunk('Stks', stks));
+      
+      const saveData = createIFZSFile(chunks);
+      
+      expect(() => parseQuetzalSave(saveData)).toThrow('Missing memory chunk');
+    });
+
+    it('should reject save missing Stks chunk', () => {
+      // Create a Quetzal file with IFhd and CMem but no Stks
+      const chunks: Uint8Array[] = [];
+      
+      // IFhd chunk (13 bytes)
+      const ifhd = new Uint8Array(13);
+      ifhd[0] = 0; ifhd[1] = 1; // release = 1
+      // Serial bytes 2-7 = '123456'
+      ifhd[2] = 0x31; ifhd[3] = 0x32; ifhd[4] = 0x33;
+      ifhd[5] = 0x34; ifhd[6] = 0x35; ifhd[7] = 0x36;
+      // Checksum bytes 8-9
+      ifhd[8] = 0xAB; ifhd[9] = 0xCD;
+      // PC bytes 10-12
+      ifhd[10] = 0x00; ifhd[11] = 0x50; ifhd[12] = 0x00;
+      
+      chunks.push(createChunk('IFhd', ifhd));
+      
+      // CMem chunk (compressed memory - just some zeros)
+      const cmem = new Uint8Array([0x00, 0x04]); // 5 zero bytes compressed
+      chunks.push(createChunk('CMem', cmem));
+      
+      const saveData = createIFZSFile(chunks);
+      
+      expect(() => parseQuetzalSave(saveData)).toThrow('Missing Stks chunk');
+    });
   });
 });
+
+/**
+ * Helper to create an IFF chunk with header
+ */
+function createChunk(type: string, data: Uint8Array): Uint8Array {
+  const paddedSize = data.length + (data.length % 2); // Add padding byte if odd
+  const chunk = new Uint8Array(8 + paddedSize);
+  
+  // Type (4 bytes)
+  for (let i = 0; i < 4; i++) {
+    chunk[i] = type.charCodeAt(i);
+  }
+  
+  // Size (4 bytes, big-endian)
+  chunk[4] = (data.length >> 24) & 0xFF;
+  chunk[5] = (data.length >> 16) & 0xFF;
+  chunk[6] = (data.length >> 8) & 0xFF;
+  chunk[7] = data.length & 0xFF;
+  
+  // Data
+  chunk.set(data, 8);
+  
+  return chunk;
+}
+
+/**
+ * Helper to create a complete IFZS file from chunks
+ */
+function createIFZSFile(chunks: Uint8Array[]): Uint8Array {
+  // Calculate total chunk data size
+  let dataSize = 4; // 'IFZS' type
+  for (const chunk of chunks) {
+    dataSize += chunk.length;
+  }
+  
+  const file = new Uint8Array(8 + dataSize);
+  
+  // FORM header
+  file[0] = 0x46; file[1] = 0x4F; file[2] = 0x52; file[3] = 0x4D; // 'FORM'
+  
+  // Size (big-endian)
+  file[4] = (dataSize >> 24) & 0xFF;
+  file[5] = (dataSize >> 16) & 0xFF;
+  file[6] = (dataSize >> 8) & 0xFF;
+  file[7] = dataSize & 0xFF;
+  
+  // IFZS type
+  file[8] = 0x49; file[9] = 0x46; file[10] = 0x5A; file[11] = 0x53; // 'IFZS'
+  
+  // Chunks
+  let offset = 12;
+  for (const chunk of chunks) {
+    file.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  return file;
+}
 
 /**
  * Create minimal test story data with valid header

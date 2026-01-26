@@ -248,4 +248,105 @@ describe('Tokenizer', () => {
       expect(v4Memory.readByte(parseBuf + 2 + 2)).toBe(4); // length
     });
   });
+
+  describe('custom dictionary', () => {
+    it('should use custom dictionary when dictionaryAddr is provided', () => {
+      // Create a custom dictionary at a different address
+      const customDictAddr = 0x300;
+      const customSeparators = '!';
+      
+      // Set up custom dictionary header
+      memory.writeByte(customDictAddr, customSeparators.length);
+      memory.writeByte(customDictAddr + 1, '!'.charCodeAt(0));
+      
+      // Entry length and count
+      const headerLen = 1 + customSeparators.length;
+      memory.writeByte(customDictAddr + headerLen, 9); // Entry length
+      memory.writeWord(customDictAddr + headerLen + 1, 0); // 0 entries
+      
+      const textBuf = 0x500;
+      const parseBuf = 0x600;
+      
+      // Write "hello!world" to text buffer
+      memory.writeByte(textBuf, 100);
+      memory.writeByte(textBuf + 1, 11);
+      const text = 'hello!world';
+      for (let i = 0; i < text.length; i++) {
+        memory.writeByte(textBuf + 2 + i, text.charCodeAt(i));
+      }
+      
+      memory.writeByte(parseBuf, 10);
+      
+      // Use custom dictionary - '!' is separator in custom dict but not in default
+      tokenizer.tokenizeBuffer(textBuf, parseBuf, customDictAddr);
+      
+      // Should have 3 tokens: hello, !, world
+      expect(memory.readByte(parseBuf + 1)).toBe(3);
+    });
+  });
+
+  describe('tokenizeBuffer with separators', () => {
+    it('should tokenize separators in tokenizeBuffer', () => {
+      const textBuf = 0x500;
+      const parseBuf = 0x600;
+      
+      // Write "go.north" - contains separator
+      memory.writeByte(textBuf, 100);
+      memory.writeByte(textBuf + 1, 8);
+      const text = 'go.north';
+      for (let i = 0; i < text.length; i++) {
+        memory.writeByte(textBuf + 2 + i, text.charCodeAt(i));
+      }
+      
+      memory.writeByte(parseBuf, 10);
+      
+      tokenizer.tokenizeBuffer(textBuf, parseBuf);
+      
+      // Should have 3 tokens: go, ., north
+      expect(memory.readByte(parseBuf + 1)).toBe(3);
+      
+      // Verify the second token is the separator with length 1
+      expect(memory.readByte(parseBuf + 2 + 4 + 2)).toBe(1); // token[1].length
+    });
+
+    it('should handle multiple consecutive separators in tokenizeBuffer', () => {
+      const textBuf = 0x500;
+      const parseBuf = 0x600;
+      
+      // Write "a.,b" - multiple separators
+      memory.writeByte(textBuf, 100);
+      memory.writeByte(textBuf + 1, 4);
+      const text = 'a.,b';
+      for (let i = 0; i < text.length; i++) {
+        memory.writeByte(textBuf + 2 + i, text.charCodeAt(i));
+      }
+      
+      memory.writeByte(parseBuf, 10);
+      
+      tokenizer.tokenizeBuffer(textBuf, parseBuf);
+      
+      // Should have 4 tokens: a, ., ,, b
+      expect(memory.readByte(parseBuf + 1)).toBe(4);
+    });
+
+    it('should handle input ending with spaces in tokenizeBuffer', () => {
+      const textBuf = 0x500;
+      const parseBuf = 0x600;
+      
+      // Write "hello   " - word followed by trailing spaces
+      memory.writeByte(textBuf, 100);
+      memory.writeByte(textBuf + 1, 8);
+      const text = 'hello   ';
+      for (let i = 0; i < text.length; i++) {
+        memory.writeByte(textBuf + 2 + i, text.charCodeAt(i));
+      }
+      
+      memory.writeByte(parseBuf, 10);
+      
+      tokenizer.tokenizeBuffer(textBuf, parseBuf);
+      
+      // Should have 1 token: hello
+      expect(memory.readByte(parseBuf + 1)).toBe(1);
+    });
+  });
 });
