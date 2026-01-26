@@ -1,6 +1,6 @@
 {
   "name": "zmachine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Z-machine emulator written from scratch in TypeScript. Zero dependencies. Run Infocom text adventures in Node.js or the browser.",
   "type": "module",
   "main": "dist/index.js",
@@ -57,12 +57,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dlockard/zmachine"
+    "url": "https://github.com/daniellockard/zmachine"
   },
   "bugs": {
-    "url": "https://github.com/dlockard/zmachine/issues"
+    "url": "https://github.com/daniellockard/zmachine/issues"
   },
-  "homepage": "https://github.com/dlockard/zmachine#readme",
+  "homepage": "https://github.com/daniellockard/zmachine#readme",
   "engines": {
     "node": ">=18.0.0"
   },
