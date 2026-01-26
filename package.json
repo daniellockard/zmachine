@@ -32,8 +32,8 @@
     "test:coverage": "vitest run --coverage",
     "test:web": "vitest run --config vitest.web.config.ts",
     "test:web:coverage": "vitest run --config vitest.web.config.ts --coverage",
-    "test:all": "vitest run && vitest run --config vitest.web.config.ts",
-    "test:all:coverage": "vitest run --coverage && vitest run --config vitest.web.config.ts --coverage",
+    "test:all": "vitest run --config vitest.all.config.ts",
+    "test:all:coverage": "vitest run --config vitest.all.config.ts --coverage",
     "lint": "eslint src --ext .ts",
     "dev": "vite",
     "dev:web": "vite --config vite.config.ts"
