@@ -300,4 +300,48 @@ describe('ZCharDecoder', () => {
       expect(result.text).toBe('a\nb');
     });
   });
+
+  describe('V2 specific', () => {
+    it('should use z-char 2 as shift lock to A1 in V2', () => {
+      // Z-char 2 in V2 is shift-lock to A1 (uppercase)
+      // 'a', shift-lock, 'A', 'B' -> "aAB"
+      // In A0: a=6, in A1: A=6, B=7
+      const words = packZChars([6, 2, 6, 7]); // 'a', shift-lock-A1, 'A', 'B'
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      // Set version to 2
+      new DataView(memory['buffer']).setUint8(0x00, 2);
+      const decoder = new ZCharDecoder(memory, 2, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('aAB');
+    });
+
+    it('should use z-char 3 as shift lock to A2 in V2', () => {
+      // Z-char 3 in V2 is shift-lock to A2 (symbols)
+      // 'a', shift-lock-A2, '0', '1' -> "a01"
+      // In A0: a=6, in A2: 0=8, 1=9 (positions 2,3 + 6)
+      const words = packZChars([6, 3, 8, 9]); // 'a', shift-lock-A2, '0', '1'
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      new DataView(memory['buffer']).setUint8(0x00, 2);
+      const decoder = new ZCharDecoder(memory, 2, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('a01');
+    });
+  });
+
+  describe('decodeString', () => {
+    it('should be an alias for decode', () => {
+      const words = packZChars([6, 7, 8]); // "abc"
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      const decoder = new ZCharDecoder(memory, 3, 0x40);
+
+      const result = decoder.decodeString(0x100);
+
+      expect(result.text).toBe('abc');
+      expect(result.bytesConsumed).toBe(2);
+    });
+  });
 });

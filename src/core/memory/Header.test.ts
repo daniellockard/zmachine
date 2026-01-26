@@ -287,5 +287,59 @@ describe('Header', () => {
       
       expect(header.unpackAddress(0x100)).toBe(0x800);
     });
+
+    it('should unpack V6 routine addresses with offset', () => {
+      const buffer = createTestStory({ version: 6 });
+      const view = new DataView(buffer);
+      // Set routines offset at 0x28 (8 * offset gives byte offset)
+      view.setUint16(0x28, 0x10, false); // offset = 0x10, so byte offset = 0x80
+      
+      const memory = new Memory(buffer);
+      const header = new Header(memory);
+      
+      // V6: packed * 4 + offset
+      // 0x100 * 4 + 0x80 = 0x480
+      expect(header.unpackAddress(0x100, false)).toBe(0x480);
+    });
+
+    it('should unpack V6 string addresses with offset', () => {
+      const buffer = createTestStory({ version: 6 });
+      const view = new DataView(buffer);
+      // Set strings offset at 0x2A (8 * offset gives byte offset)
+      view.setUint16(0x2A, 0x20, false); // offset = 0x20, so byte offset = 0x100
+      
+      const memory = new Memory(buffer);
+      const header = new Header(memory);
+      
+      // V6: packed * 4 + offset
+      // 0x100 * 4 + 0x100 = 0x500
+      expect(header.unpackAddress(0x100, true)).toBe(0x500);
+    });
+
+    it('should unpack V7 addresses with offset', () => {
+      const buffer = createTestStory({ version: 7 });
+      const view = new DataView(buffer);
+      view.setUint16(0x28, 0x08, false); // routines offset
+      
+      const memory = new Memory(buffer);
+      const header = new Header(memory);
+      
+      // V7: packed * 4 + offset
+      // 0x100 * 4 + 0x40 = 0x440
+      expect(header.unpackAddress(0x100, false)).toBe(0x440);
+    });
+  });
+
+  describe('flags2 getter', () => {
+    it('should return flags2 value', () => {
+      const buffer = createTestStory({ version: 5 });
+      const view = new DataView(buffer);
+      view.setUint16(0x10, 0x1234, false); // flags2 at 0x10
+      
+      const memory = new Memory(buffer);
+      const header = new Header(memory);
+      
+      expect(header.flags2).toBe(0x1234);
+    });
   });
 });

@@ -415,5 +415,141 @@ describe('Properties', () => {
       const addr5 = props.getPropertyAddress(1, 5);
       expect(props.getPropertyLength(addr5)).toBe(4);
     });
+
+    it('should return 0 for address 0', () => {
+      const objTable = new ObjectTable(memory, 3, 0x100);
+      const props = new Properties(memory, 3, objTable);
+
+      expect(props.getPropertyLength(0)).toBe(0);
+    });
+  });
+
+  describe('V5 property format', () => {
+    function setupV5Memory(): Memory {
+      const size = 0x10000;
+      const buffer = new ArrayBuffer(size);
+      const view = new DataView(buffer);
+
+      view.setUint8(0x00, 5); // Version 5
+      view.setUint16(0x0A, 0x100, false); // Object table
+      view.setUint16(0x0E, 0x8000, false); // Static memory base
+
+      return new Memory(buffer);
+    }
+
+    function setupV5ObjectTable(mem: Memory): void {
+      const tableAddr = 0x100;
+
+      // Property defaults (63 words = 126 bytes)
+      for (let i = 0; i < 63; i++) {
+        mem.writeWord(tableAddr + i * 2, (i + 1) * 10);
+      }
+
+      // Object entries start at tableAddr + 126
+      const objStart = tableAddr + 126;
+
+      // Object 1 (14 bytes for V5)
+      const obj1Addr = objStart;
+      // 6 bytes attributes
+      for (let i = 0; i < 6; i++) {
+        mem.writeByte(obj1Addr + i, 0);
+      }
+      mem.writeWord(obj1Addr + 6, 0);  // Parent
+      mem.writeWord(obj1Addr + 8, 0);  // Sibling
+      mem.writeWord(obj1Addr + 10, 0); // Child
+      mem.writeWord(obj1Addr + 12, 0x300); // Property table
+
+      // Property table at 0x300
+      const propTableAddr = 0x300;
+      // Short name length
+      mem.writeByte(propTableAddr, 0); // No name
+
+      // Properties start at propTableAddr + 1
+      let propAddr = propTableAddr + 1;
+
+      // 1-byte header property (prop 10, length 1)
+      // Format: 0b0SPPPPPP where S=size-1 (0 or 1), P=prop number
+      mem.writeByte(propAddr, 10); // prop 10, size 1 (bit 6 clear)
+      propAddr++;
+      mem.writeByte(propAddr, 0x42); // data
+      propAddr++;
+
+      // 1-byte header property (prop 8, length 2)
+      mem.writeByte(propAddr, 0x48); // prop 8, size 2 (bit 6 set = 0x40 | 8)
+      propAddr++;
+      mem.writeWord(propAddr, 0x1234); // data
+      propAddr += 2;
+
+      // 2-byte header property (prop 5, length 8)
+      // First byte: 0b1SPPPPPP where S=1 for 2-byte header
+      mem.writeByte(propAddr, 0x80 | 5); // prop 5, 2-byte header
+      propAddr++;
+      // Second byte: 0b1NLLLLLL where L=length
+      mem.writeByte(propAddr, 0x80 | 8); // length 8
+      propAddr++;
+      // Write 8 bytes of data
+      for (let i = 0; i < 8; i++) {
+        mem.writeByte(propAddr + i, i);
+      }
+      propAddr += 8;
+
+      // 2-byte header property with length 0 = 64 (prop 3)
+      mem.writeByte(propAddr, 0x80 | 3); // prop 3, 2-byte header
+      propAddr++;
+      mem.writeByte(propAddr, 0x80 | 0); // length 0 = 64
+      propAddr++;
+      // Write 64 bytes of data
+      for (let i = 0; i < 64; i++) {
+        mem.writeByte(propAddr + i, i);
+      }
+      propAddr += 64;
+
+      // End of property list
+      mem.writeByte(propAddr, 0);
+    }
+
+    it('should get V5 1-byte header property length (size 1)', () => {
+      const mem = setupV5Memory();
+      setupV5ObjectTable(mem);
+      const objTable = new ObjectTable(mem, 5, 0x100);
+      const props = new Properties(mem, 5, objTable);
+
+      const addr10 = props.getPropertyAddress(1, 10);
+      expect(addr10).toBeGreaterThan(0);
+      expect(props.getPropertyLength(addr10)).toBe(1);
+    });
+
+    it('should get V5 1-byte header property length (size 2)', () => {
+      const mem = setupV5Memory();
+      setupV5ObjectTable(mem);
+      const objTable = new ObjectTable(mem, 5, 0x100);
+      const props = new Properties(mem, 5, objTable);
+
+      const addr8 = props.getPropertyAddress(1, 8);
+      expect(addr8).toBeGreaterThan(0);
+      expect(props.getPropertyLength(addr8)).toBe(2);
+    });
+
+    it('should get V5 2-byte header property length', () => {
+      const mem = setupV5Memory();
+      setupV5ObjectTable(mem);
+      const objTable = new ObjectTable(mem, 5, 0x100);
+      const props = new Properties(mem, 5, objTable);
+
+      const addr5 = props.getPropertyAddress(1, 5);
+      expect(addr5).toBeGreaterThan(0);
+      expect(props.getPropertyLength(addr5)).toBe(8);
+    });
+
+    it('should treat length 0 as 64 in 2-byte header', () => {
+      const mem = setupV5Memory();
+      setupV5ObjectTable(mem);
+      const objTable = new ObjectTable(mem, 5, 0x100);
+      const props = new Properties(mem, 5, objTable);
+
+      const addr3 = props.getPropertyAddress(1, 3);
+      expect(addr3).toBeGreaterThan(0);
+      expect(props.getPropertyLength(addr3)).toBe(64);
+    });
   });
 });

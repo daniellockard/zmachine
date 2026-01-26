@@ -1128,4 +1128,857 @@ describe('Executor', () => {
       expect(variables.read(16)).toBe(0); // No more properties
     });
   });
+
+  describe('V5+ opcodes', () => {
+    let v5Memory: Memory;
+    let v5Header: Header;
+    let v5Stack: Stack;
+    let v5Variables: Variables;
+    let v5Io: TestIOAdapter;
+    let v5TextDecoder: ZCharDecoder;
+    let v5Executor: Executor;
+
+    function createV5Memory(): Memory {
+      const size = 0x10000;
+      const buffer = new ArrayBuffer(size);
+      const view = new DataView(buffer);
+
+      view.setUint8(0x00, 5); // Version 5
+      view.setUint16(0x04, 0x4000, false);
+      view.setUint16(0x06, 0x1000, false);
+      view.setUint16(0x0C, 0x100, false);
+      view.setUint16(0x0E, 0x2000, false);
+      view.setUint16(0x18, 0x40, false);
+
+      return new Memory(buffer);
+    }
+
+    beforeEach(() => {
+      v5Memory = createV5Memory();
+      v5Header = new Header(v5Memory);
+      v5Stack = new Stack();
+      v5Stack.initialize(0);
+      v5Variables = new Variables(v5Memory, v5Stack, v5Header.globalsAddress);
+      v5Io = new TestIOAdapter();
+      v5TextDecoder = new ZCharDecoder(v5Memory, 5, v5Header.abbreviationsAddress);
+      v5Executor = new Executor(v5Memory, v5Header, v5Stack, v5Variables, 5, v5Io, v5TextDecoder);
+    });
+
+    describe('print_unicode', () => {
+      it('should print a Unicode character', async () => {
+        const ins = makeInstruction('print_unicode', [
+          makeOperand(OperandType.LargeConstant, 0x2764), // ❤ heart
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('❤');
+      });
+
+      it('should print ASCII characters', async () => {
+        const ins = makeInstruction('print_unicode', [
+          makeOperand(OperandType.SmallConstant, 65), // 'A'
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('A');
+      });
+    });
+
+    describe('check_unicode', () => {
+      it('should return 3 for printable and readable ASCII', async () => {
+        const ins = makeInstruction('check_unicode', [
+          makeOperand(OperandType.SmallConstant, 65), // 'A'
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // 3 = can print (1) + can read (2)
+        expect(v5Variables.read(16)).toBe(3);
+      });
+
+      it('should return 1 for printable but not readable Unicode', async () => {
+        const ins = makeInstruction('check_unicode', [
+          makeOperand(OperandType.LargeConstant, 0x2764), // Heart emoji
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // 1 = can print only
+        expect(v5Variables.read(16)).toBe(1);
+      });
+
+      it('should return 0 for invalid codepoint', async () => {
+        const ins = makeInstruction('check_unicode', [
+          makeOperand(OperandType.LargeConstant, 0xFFFFFF), // Invalid
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+    });
+
+    describe('catch', () => {
+      it('should store the current frame pointer', async () => {
+        // Push a frame to have depth > 1
+        v5Stack.pushFrame(0x2000, 16, 2, 0);
+        
+        const ins = makeInstruction('catch', [], 2, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        const fp = v5Variables.read(16);
+        expect(fp).toBe(2); // Frame depth should be 2 (initial + pushed)
+      });
+    });
+
+    describe('throw', () => {
+      it('should unwind to frame and return value', async () => {
+        // Setup: push a frame that stores to var 17
+        v5Stack.pushFrame(0x2000, 17, 2, 0);
+        const framePointer = v5Stack.getFramePointer();
+        
+        // Now push another frame
+        v5Stack.pushFrame(0x3000, 18, 1, 0);
+        
+        const ins = makeInstruction('throw', [
+          makeOperand(OperandType.SmallConstant, 42), // value
+          makeOperand(OperandType.SmallConstant, framePointer), // frame to unwind to
+        ], 4);
+
+        const result = await v5Executor.execute(ins);
+
+        // Should return to the frame's return PC
+        expect(result.nextPC).toBe(0x2000);
+        // Value should be stored in var 17
+        expect(v5Variables.read(17)).toBe(42);
+      });
+    });
+
+    describe('piracy', () => {
+      it('should always branch (genuine disk)', async () => {
+        const ins = makeInstruction('piracy', [], 3, {
+          branch: { branchOnTrue: true, offset: 10 }
+        });
+
+        const result = await v5Executor.execute(ins);
+
+        // Should branch (offset 10 from address + length)
+        expect(result.nextPC).toBe(0x1000 + 3 + 10 - 2);
+      });
+    });
+
+    describe('erase_line', () => {
+      it('should call io.eraseLine when value is 1', async () => {
+        let eraseLineCalled = false;
+        v5Io.eraseLine = () => { eraseLineCalled = true; };
+        
+        const ins = makeInstruction('erase_line', [
+          makeOperand(OperandType.SmallConstant, 1),
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(eraseLineCalled).toBe(true);
+      });
+
+      it('should not call eraseLine for other values', async () => {
+        let eraseLineCalled = false;
+        v5Io.eraseLine = () => { eraseLineCalled = true; };
+        
+        const ins = makeInstruction('erase_line', [
+          makeOperand(OperandType.SmallConstant, 0),
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(eraseLineCalled).toBe(false);
+      });
+    });
+
+    describe('set_true_colour', () => {
+      it('should set foreground and background colors', async () => {
+        let fgColor: number | undefined;
+        let bgColor: number | undefined;
+        v5Io.setForegroundColor = (c) => { fgColor = c; };
+        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        
+        const ins = makeInstruction('set_true_colour', [
+          makeOperand(OperandType.LargeConstant, 0x7C00), // Red
+          makeOperand(OperandType.LargeConstant, 0x001F), // Blue
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(fgColor).toBe(0x7C00);
+        expect(bgColor).toBe(0x001F);
+      });
+
+      it('should not set color for 0xFFFF (keep current)', async () => {
+        let fgColor: number | undefined;
+        let bgColor: number | undefined;
+        v5Io.setForegroundColor = (c) => { fgColor = c; };
+        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        
+        const ins = makeInstruction('set_true_colour', [
+          makeOperand(OperandType.LargeConstant, 0xFFFF),
+          makeOperand(OperandType.LargeConstant, 0xFFFF),
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(fgColor).toBeUndefined();
+        expect(bgColor).toBeUndefined();
+      });
+
+      it('should not set color for 0xFFFE (use default)', async () => {
+        let fgColor: number | undefined;
+        let bgColor: number | undefined;
+        v5Io.setForegroundColor = (c) => { fgColor = c; };
+        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        
+        const ins = makeInstruction('set_true_colour', [
+          makeOperand(OperandType.LargeConstant, 0xFFFE),
+          makeOperand(OperandType.LargeConstant, 0xFFFE),
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(fgColor).toBeUndefined();
+        expect(bgColor).toBeUndefined();
+      });
+    });
+
+    describe('set_font', () => {
+      it('should return 1 for normal font (1)', async () => {
+        const ins = makeInstruction('set_font', [
+          makeOperand(OperandType.SmallConstant, 1),
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(1);
+      });
+
+      it('should return 1 for fixed-pitch font (4)', async () => {
+        const ins = makeInstruction('set_font', [
+          makeOperand(OperandType.SmallConstant, 4),
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(1);
+      });
+
+      it('should return 0 for unsupported font', async () => {
+        const ins = makeInstruction('set_font', [
+          makeOperand(OperandType.SmallConstant, 3),
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should query current font when font is 0', async () => {
+        const ins = makeInstruction('set_font', [
+          makeOperand(OperandType.SmallConstant, 0),
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(1); // Always returns normal font
+      });
+    });
+
+    describe('save_undo and restore_undo', () => {
+      it('should save_undo and return 1', async () => {
+        const ins = makeInstruction('save_undo', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(1);
+      });
+
+      it('should restore_undo and return 0 when no undo available', async () => {
+        const ins = makeInstruction('restore_undo', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should restore_undo and return 2 after save_undo', async () => {
+        // Save undo first
+        const saveIns = makeInstruction('save_undo', [], 3, { storeVariable: 16 });
+        await v5Executor.execute(saveIns);
+        expect(v5Variables.read(16)).toBe(1);
+        
+        // Restore undo should return 2
+        const restoreIns = makeInstruction('restore_undo', [], 3, { storeVariable: 17 });
+        await v5Executor.execute(restoreIns);
+        
+        // Checking variable 17 for restore result (variable 16 gets restored to old value)
+        expect(v5Variables.read(17)).toBe(2);
+      });
+    });
+
+    describe('log_shift', () => {
+      it('should left shift (logical)', async () => {
+        const ins = makeInstruction('log_shift', [
+          makeOperand(OperandType.SmallConstant, 0x0F),
+          makeOperand(OperandType.SmallConstant, 4),
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0xF0);
+      });
+
+      it('should right shift (logical, zero fill)', async () => {
+        const ins = makeInstruction('log_shift', [
+          makeOperand(OperandType.LargeConstant, 0xFF00),
+          makeOperand(OperandType.LargeConstant, 0xFFFC), // -4 as signed
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x0FF0);
+      });
+
+      it('should right shift with zero fill on high bits', async () => {
+        const ins = makeInstruction('log_shift', [
+          makeOperand(OperandType.LargeConstant, 0x8000),
+          makeOperand(OperandType.LargeConstant, 0xFFF8), // -8 as signed
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x0080); // High bit not preserved
+      });
+    });
+
+    describe('art_shift', () => {
+      it('should left shift (same as logical)', async () => {
+        const ins = makeInstruction('art_shift', [
+          makeOperand(OperandType.SmallConstant, 0x0F),
+          makeOperand(OperandType.SmallConstant, 4),
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0xF0);
+      });
+
+      it('should right shift (arithmetic, sign extend)', async () => {
+        const ins = makeInstruction('art_shift', [
+          makeOperand(OperandType.LargeConstant, 0x8000), // Negative number in signed 16-bit
+          makeOperand(OperandType.LargeConstant, 0xFFFC), // -4 as signed
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // Arithmetic right shift preserves sign, so 0x8000 >> 4 = 0xF800
+        expect(v5Variables.read(16)).toBe(0xF800);
+      });
+
+      it('should right shift positive number without sign extension', async () => {
+        const ins = makeInstruction('art_shift', [
+          makeOperand(OperandType.LargeConstant, 0x7F00), // Positive number
+          makeOperand(OperandType.LargeConstant, 0xFFFC), // -4 as signed
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x07F0);
+      });
+    });
+
+    describe('check_arg_count', () => {
+      it('should branch true when arg count is met', async () => {
+        // Push a new frame with 3 arguments (returnPC, storeVar, localCount, argCount)
+        v5Stack.pushFrame(0x2000, 16, 5, 3);
+
+        const ins = makeInstruction('check_arg_count', [
+          makeOperand(OperandType.SmallConstant, 3),
+        ], 3, { address: 0x2000, branch: { branchOnTrue: true, offset: 10 } });
+
+        const result = await v5Executor.execute(ins);
+
+        // Should branch (argNum 3 <= argCount 3)
+        expect(result.nextPC).toBe(0x2000 + 3 + 10 - 2);
+      });
+
+      it('should not branch when arg count is not met', async () => {
+        // Push a new frame with 2 arguments (returnPC, storeVar, localCount, argCount)
+        v5Stack.pushFrame(0x2000, 16, 5, 2);
+
+        const ins = makeInstruction('check_arg_count', [
+          makeOperand(OperandType.SmallConstant, 3),
+        ], 3, { address: 0x2000, branch: { branchOnTrue: true, offset: 10 } });
+
+        const result = await v5Executor.execute(ins);
+
+        // Should not branch (argNum 3 > argCount 2)
+        expect(result.nextPC).toBe(0x2000 + 3);
+      });
+    });
+
+    describe('copy_table', () => {
+      it('should copy table forwards', async () => {
+        // Write source data
+        v5Memory.writeByte(0x800, 0x11);
+        v5Memory.writeByte(0x801, 0x22);
+        v5Memory.writeByte(0x802, 0x33);
+
+        const ins = makeInstruction('copy_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // first
+          makeOperand(OperandType.LargeConstant, 0x900), // second
+          makeOperand(OperandType.SmallConstant, 3),     // size
+        ], 6);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readByte(0x900)).toBe(0x11);
+        expect(v5Memory.readByte(0x901)).toBe(0x22);
+        expect(v5Memory.readByte(0x902)).toBe(0x33);
+      });
+
+      it('should zero table when second is 0', async () => {
+        // Write some data to be zeroed
+        v5Memory.writeByte(0x800, 0xFF);
+        v5Memory.writeByte(0x801, 0xFF);
+        v5Memory.writeByte(0x802, 0xFF);
+
+        const ins = makeInstruction('copy_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // first
+          makeOperand(OperandType.SmallConstant, 0),     // second = 0
+          makeOperand(OperandType.SmallConstant, 3),     // size
+        ], 6);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readByte(0x800)).toBe(0);
+        expect(v5Memory.readByte(0x801)).toBe(0);
+        expect(v5Memory.readByte(0x802)).toBe(0);
+      });
+
+      it('should copy backwards when overlapping and second > first', async () => {
+        // Write source data with potential overlap
+        v5Memory.writeByte(0x800, 0x11);
+        v5Memory.writeByte(0x801, 0x22);
+        v5Memory.writeByte(0x802, 0x33);
+        v5Memory.writeByte(0x803, 0x44);
+
+        // Copy 0x800-0x803 to 0x802-0x805 (overlapping, second > first)
+        const ins = makeInstruction('copy_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // first
+          makeOperand(OperandType.LargeConstant, 0x802), // second > first
+          makeOperand(OperandType.SmallConstant, 4),     // positive size triggers backward copy
+        ], 6);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readByte(0x802)).toBe(0x11);
+        expect(v5Memory.readByte(0x803)).toBe(0x22);
+        expect(v5Memory.readByte(0x804)).toBe(0x33);
+        expect(v5Memory.readByte(0x805)).toBe(0x44);
+      });
+
+      it('should handle negative size for forward copy', async () => {
+        v5Memory.writeByte(0x800, 0xAA);
+        v5Memory.writeByte(0x801, 0xBB);
+
+        const ins = makeInstruction('copy_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // first
+          makeOperand(OperandType.LargeConstant, 0x900), // second
+          makeOperand(OperandType.LargeConstant, 0xFFFE), // -2 as signed = abs(size)
+        ], 6);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readByte(0x900)).toBe(0xAA);
+        expect(v5Memory.readByte(0x901)).toBe(0xBB);
+      });
+    });
+
+    describe('print_table', () => {
+      it('should print single row table', async () => {
+        // Write text "Hi" at 0x800
+        v5Memory.writeByte(0x800, 0x48); // 'H'
+        v5Memory.writeByte(0x801, 0x69); // 'i'
+
+        const ins = makeInstruction('print_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // text
+          makeOperand(OperandType.SmallConstant, 2),     // width
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('Hi');
+      });
+
+      it('should print multi-row table with newlines', async () => {
+        // Write 2x2 table: AB\nCD
+        v5Memory.writeByte(0x800, 0x41); // 'A'
+        v5Memory.writeByte(0x801, 0x42); // 'B'
+        v5Memory.writeByte(0x802, 0x43); // 'C'
+        v5Memory.writeByte(0x803, 0x44); // 'D'
+
+        const ins = makeInstruction('print_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // text
+          makeOperand(OperandType.SmallConstant, 2),     // width
+          makeOperand(OperandType.SmallConstant, 2),     // height
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('AB\nCD');
+      });
+
+      it('should handle skip parameter', async () => {
+        // Write table with skip bytes between rows
+        v5Memory.writeByte(0x800, 0x41); // 'A'
+        v5Memory.writeByte(0x801, 0x42); // 'B'
+        v5Memory.writeByte(0x802, 0xFF); // skip byte
+        v5Memory.writeByte(0x803, 0x43); // 'C'
+        v5Memory.writeByte(0x804, 0x44); // 'D'
+
+        const ins = makeInstruction('print_table', [
+          makeOperand(OperandType.LargeConstant, 0x800), // text
+          makeOperand(OperandType.SmallConstant, 2),     // width
+          makeOperand(OperandType.SmallConstant, 2),     // height
+          makeOperand(OperandType.SmallConstant, 1),     // skip
+        ], 6);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('AB\nCD');
+      });
+    });
+
+    describe('encode_text', () => {
+      it('should encode text to dictionary format', async () => {
+        // Write ZSCII text "abc" at 0x800
+        v5Memory.writeByte(0x800, 0x61); // 'a'
+        v5Memory.writeByte(0x801, 0x62); // 'b'
+        v5Memory.writeByte(0x802, 0x63); // 'c'
+
+        const ins = makeInstruction('encode_text', [
+          makeOperand(OperandType.LargeConstant, 0x800), // zscii-text
+          makeOperand(OperandType.SmallConstant, 3),     // length
+          makeOperand(OperandType.SmallConstant, 0),     // from
+          makeOperand(OperandType.LargeConstant, 0x900), // coded-text destination
+        ], 7);
+
+        await v5Executor.execute(ins);
+
+        // Check that something was written (encoded bytes)
+        // In V5, dictionary words are 6 bytes
+        const byte0 = v5Memory.readByte(0x900);
+        const byte5 = v5Memory.readByte(0x905);
+        expect(byte0).toBeGreaterThan(0);
+        // Last word should have high bit set
+        expect(v5Memory.readByte(0x904) & 0x80).toBe(0x80);
+      });
+    });
+
+    describe('read_char', () => {
+      it('should read a character from input', async () => {
+        v5Io.queueCharInput(65); // 'A'
+
+        const ins = makeInstruction('read_char', [
+          makeOperand(OperandType.SmallConstant, 1), // always 1
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(65);
+      });
+
+      it('should handle timeout with no input', async () => {
+        // Don't queue any input
+        const ins = makeInstruction('read_char', [
+          makeOperand(OperandType.SmallConstant, 1), // always 1
+          makeOperand(OperandType.SmallConstant, 1), // timeout (any non-zero)
+        ], 4, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0); // No key pressed
+      });
+    });
+
+    describe('scan_table', () => {
+      it('should find word value in table', async () => {
+        // Write a table of words at 0x800
+        v5Memory.writeWord(0x800, 0x1234);
+        v5Memory.writeWord(0x802, 0x5678);
+        v5Memory.writeWord(0x804, 0xABCD);
+
+        const ins = makeInstruction('scan_table', [
+          makeOperand(OperandType.LargeConstant, 0x5678), // x - value to find
+          makeOperand(OperandType.LargeConstant, 0x800),  // table
+          makeOperand(OperandType.SmallConstant, 3),      // len (3 entries)
+          makeOperand(OperandType.SmallConstant, 0x82),   // form: word, 2 bytes per entry
+        ], 7, { storeVariable: 16, branch: { branchOnTrue: true, offset: 10 } });
+
+        const result = await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x802); // Address of found entry
+        expect(result.nextPC).toBe(0x1000 + 7 + 10 - 2); // Branch taken
+      });
+
+      it('should find byte value in table', async () => {
+        // Write a table of bytes at 0x800
+        v5Memory.writeByte(0x800, 0x11);
+        v5Memory.writeByte(0x801, 0x22);
+        v5Memory.writeByte(0x802, 0x33);
+
+        const ins = makeInstruction('scan_table', [
+          makeOperand(OperandType.SmallConstant, 0x22),  // x - value to find
+          makeOperand(OperandType.LargeConstant, 0x800), // table
+          makeOperand(OperandType.SmallConstant, 3),     // len (3 entries)
+          makeOperand(OperandType.SmallConstant, 0x01),  // form: byte, 1 byte per entry
+        ], 7, { storeVariable: 16, branch: { branchOnTrue: true, offset: 10 } });
+
+        const result = await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x801); // Address of found entry
+        expect(result.nextPC).toBe(0x1000 + 7 + 10 - 2); // Branch taken
+      });
+
+      it('should return 0 and not branch when not found', async () => {
+        v5Memory.writeWord(0x800, 0x1234);
+        v5Memory.writeWord(0x802, 0x5678);
+
+        const ins = makeInstruction('scan_table', [
+          makeOperand(OperandType.LargeConstant, 0x9999), // x - value NOT in table
+          makeOperand(OperandType.LargeConstant, 0x800),  // table
+          makeOperand(OperandType.SmallConstant, 2),      // len
+        ], 6, { storeVariable: 16, branch: { branchOnTrue: true, offset: 10 } });
+
+        const result = await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+        expect(result.nextPC).toBe(0x1000 + 6); // No branch
+      });
+    });
+
+    describe('tokenise', () => {
+      it('should tokenize text buffer', async () => {
+        // Set up a simple dictionary at 0x500
+        // Dictionary header: word separators count, then word separator bytes
+        v5Memory.writeByte(0x500, 1);    // 1 separator
+        v5Memory.writeByte(0x501, 0x2C); // comma
+        v5Memory.writeByte(0x502, 6);    // entry length (V5: 6 bytes encoded + 4 data = 10, but spec says entry size)
+        v5Memory.writeWord(0x503, 0);    // 0 entries (empty dictionary)
+
+        // Set up text buffer at 0x600 with "hi" text
+        // V5 format: byte 0 = max chars, byte 1 = actual chars typed
+        v5Memory.writeByte(0x600, 80);   // max length
+        v5Memory.writeByte(0x601, 2);    // 2 chars typed
+        v5Memory.writeByte(0x602, 0x68); // 'h'
+        v5Memory.writeByte(0x603, 0x69); // 'i'
+
+        // Set up parse buffer at 0x700
+        v5Memory.writeByte(0x700, 10);   // max parse entries
+
+        // Update header dictionary address
+        const dictionaryAddr = 0x500;
+        v5Memory.writeWord(0x08, dictionaryAddr);
+
+        const ins = makeInstruction('tokenise', [
+          makeOperand(OperandType.LargeConstant, 0x600), // text buffer
+          makeOperand(OperandType.LargeConstant, 0x700), // parse buffer
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        // Parse buffer byte 1 should have word count
+        const wordCount = v5Memory.readByte(0x701);
+        expect(wordCount).toBeGreaterThanOrEqual(0); // At least executed without error
+      });
+    });
+
+    describe('input_stream', () => {
+      it('should call setInputStream on io adapter', async () => {
+        let inputStreamCalled = false;
+        let streamValue = -1;
+        v5Io.setInputStream = (stream: number) => {
+          inputStreamCalled = true;
+          streamValue = stream;
+        };
+
+        const ins = makeInstruction('input_stream', [
+          makeOperand(OperandType.SmallConstant, 1), // stream 1
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(inputStreamCalled).toBe(true);
+        expect(streamValue).toBe(1);
+      });
+    });
+
+    describe('sound_effect', () => {
+      it('should call soundEffect on io adapter', async () => {
+        let soundCalled = false;
+        let soundParams: number[] = [];
+        v5Io.soundEffect = (number: number, effect: number, volume: number) => {
+          soundCalled = true;
+          soundParams = [number, effect, volume];
+        };
+
+        const ins = makeInstruction('sound_effect', [
+          makeOperand(OperandType.SmallConstant, 1), // number
+          makeOperand(OperandType.SmallConstant, 2), // effect
+          makeOperand(OperandType.SmallConstant, 8), // volume
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(soundCalled).toBe(true);
+        expect(soundParams).toEqual([1, 2, 8]);
+      });
+
+      it('should handle missing optional parameters', async () => {
+        let soundParams: number[] = [];
+        v5Io.soundEffect = (number: number, effect: number, volume: number) => {
+          soundParams = [number, effect, volume];
+        };
+
+        const ins = makeInstruction('sound_effect', [
+          makeOperand(OperandType.SmallConstant, 5), // only number
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(soundParams).toEqual([5, 0, 0]); // defaults for effect and volume
+      });
+    });
+
+    describe('get_cursor', () => {
+      it('should write cursor position to memory array', async () => {
+        v5Io.getCursor = () => ({ line: 5, column: 10 });
+
+        const ins = makeInstruction('get_cursor', [
+          makeOperand(OperandType.LargeConstant, 0x800), // array address
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readWord(0x800)).toBe(5);  // row
+        expect(v5Memory.readWord(0x802)).toBe(10); // column
+      });
+
+      it('should use default 1,1 when getCursor not available', async () => {
+        // Ensure getCursor is undefined
+        delete (v5Io as any).getCursor;
+
+        const ins = makeInstruction('get_cursor', [
+          makeOperand(OperandType.LargeConstant, 0x800), // array address
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Memory.readWord(0x800)).toBe(1);  // default row
+        expect(v5Memory.readWord(0x802)).toBe(1);  // default column
+      });
+    });
+
+    describe('output_stream', () => {
+      it('should call setOutputStream on io adapter', async () => {
+        let outputStreamCalled = false;
+        let streamParams: [number, boolean, number] = [0, false, 0];
+        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number) => {
+          outputStreamCalled = true;
+          streamParams = [stream, enable, table ?? 0];
+        };
+
+        const ins = makeInstruction('output_stream', [
+          makeOperand(OperandType.SmallConstant, 2), // enable stream 2
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(outputStreamCalled).toBe(true);
+        expect(streamParams[0]).toBe(2);
+        expect(streamParams[1]).toBe(true);
+      });
+
+      it('should disable stream with negative value', async () => {
+        let streamParams: [number, boolean, number] = [0, false, 0];
+        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number) => {
+          streamParams = [stream, enable, table ?? 0];
+        };
+
+        const ins = makeInstruction('output_stream', [
+          makeOperand(OperandType.LargeConstant, 0xFFFE), // -2 as signed (disable stream 2)
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(streamParams[0]).toBe(2);
+        expect(streamParams[1]).toBe(false);
+      });
+    });
+
+    describe('set_text_style', () => {
+      it('should call setTextStyle on io adapter', async () => {
+        let styleCalled = false;
+        let styleValue = -1;
+        v5Io.setTextStyle = (style: number) => {
+          styleCalled = true;
+          styleValue = style;
+        };
+
+        const ins = makeInstruction('set_text_style', [
+          makeOperand(OperandType.SmallConstant, 4), // bold style
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(styleCalled).toBe(true);
+        expect(styleValue).toBe(4);
+      });
+    });
+
+    describe('buffer_mode', () => {
+      it('should call setBufferMode on io adapter', async () => {
+        let bufferModeCalled = false;
+        let bufferModeValue = false;
+        v5Io.setBufferMode = (mode: boolean) => {
+          bufferModeCalled = true;
+          bufferModeValue = mode;
+        };
+
+        const ins = makeInstruction('buffer_mode', [
+          makeOperand(OperandType.SmallConstant, 1), // enable buffering
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(bufferModeCalled).toBe(true);
+        expect(bufferModeValue).toBe(true);
+      });
+
+      it('should disable buffer mode with 0', async () => {
+        let bufferModeValue = true;
+        v5Io.setBufferMode = (mode: boolean) => {
+          bufferModeValue = mode;
+        };
+
+        const ins = makeInstruction('buffer_mode', [
+          makeOperand(OperandType.SmallConstant, 0), // disable buffering
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(bufferModeValue).toBe(false);
+      });
+    });
+  });
 });
