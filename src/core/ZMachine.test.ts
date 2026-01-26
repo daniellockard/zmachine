@@ -72,11 +72,37 @@ describe('ZMachine', () => {
       expect(zm.version).toBe(5);
     });
 
-    it('should throw for unsupported version', () => {
+    it('should throw for invalid version via Header', () => {
       const view = new DataView(storyData);
       view.setUint8(0x00, 9); // Invalid version
       
       expect(() => new ZMachine(storyData, io)).toThrow('Invalid Z-machine version: 9');
+    });
+  });
+
+  describe('load static method', () => {
+    it('should create ZMachine from ArrayBuffer', () => {
+      const zm = ZMachine.load(storyData, io);
+      expect(zm).toBeInstanceOf(ZMachine);
+      expect(zm.version).toBe(5);
+    });
+
+    it('should create ZMachine from Uint8Array', () => {
+      const uint8Array = new Uint8Array(storyData);
+      const zm = ZMachine.load(uint8Array, io);
+      expect(zm).toBeInstanceOf(ZMachine);
+      expect(zm.version).toBe(5);
+    });
+
+    it('should copy Uint8Array data to new ArrayBuffer', () => {
+      const uint8Array = new Uint8Array(storyData);
+      const zm = ZMachine.load(uint8Array, io);
+      
+      // Modify the original Uint8Array
+      uint8Array[0x50] = 0xAB;
+      
+      // ZMachine memory should not be affected (data was copied)
+      expect(zm.memory.readByte(0x50)).toBe(0);
     });
 
     it('should initialize with stopped state', () => {
@@ -346,7 +372,117 @@ describe('ZMachine', () => {
     });
   });
 
+  describe('run', () => {
+    it('should set state to Running and loop until halted', async () => {
+      const zm = new ZMachine(storyData, io);
+      
+      // Mock executor to return halted after first instruction
+      vi.spyOn(zm.executor, 'execute').mockResolvedValueOnce({
+        halted: true,
+      });
+      
+      // Mock decoder to return a valid instruction
+      vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
+        opcode: 0,
+        form: 'short',
+        operandCount: 0,
+        operands: [],
+        address: zm.pc,
+        length: 1,
+      });
+      
+      const result = await zm.run();
+      
+      expect(result).toBe(RunState.Halted);
+      expect(zm.state).toBe(RunState.Halted);
+    });
+
+    it('should stop running when waiting for input', async () => {
+      const zm = new ZMachine(storyData, io);
+      
+      // Mock executor to return waitingForInput
+      vi.spyOn(zm.executor, 'execute').mockResolvedValueOnce({
+        waitingForInput: true,
+      });
+      
+      // Mock decoder to return a valid instruction
+      vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
+        opcode: 0,
+        form: 'short',
+        operandCount: 0,
+        operands: [],
+        address: zm.pc,
+        length: 1,
+      });
+      
+      const result = await zm.run();
+      
+      expect(result).toBe(RunState.WaitingForInput);
+      expect(zm.state).toBe(RunState.WaitingForInput);
+    });
+
+    it('should execute multiple instructions before halting', async () => {
+      const zm = new ZMachine(storyData, io);
+      
+      // Mock executor to execute 3 instructions then halt
+      const executeSpy = vi.spyOn(zm.executor, 'execute')
+        .mockResolvedValueOnce({ nextPC: 0x1001 })
+        .mockResolvedValueOnce({ nextPC: 0x1002 })
+        .mockResolvedValueOnce({ halted: true });
+      
+      // Mock decoder for each instruction
+      vi.spyOn(zm.decoder, 'decode')
+        .mockReturnValueOnce({
+          opcode: 0,
+          form: 'short',
+          operandCount: 0,
+          operands: [],
+          address: 0x1000,
+          length: 1,
+        })
+        .mockReturnValueOnce({
+          opcode: 0,
+          form: 'short',
+          operandCount: 0,
+          operands: [],
+          address: 0x1001,
+          length: 1,
+        })
+        .mockReturnValueOnce({
+          opcode: 0,
+          form: 'short',
+          operandCount: 0,
+          operands: [],
+          address: 0x1002,
+          length: 1,
+        });
+      
+      const result = await zm.run();
+      
+      expect(executeSpy).toHaveBeenCalledTimes(3);
+      expect(result).toBe(RunState.Halted);
+    });
+  });
+
   describe('step', () => {
+    it('should do nothing when state is Halted', async () => {
+      const zm = new ZMachine(storyData, io);
+      const initialPC = zm.pc;
+      
+      // Set state to Halted
+      (zm as any)._state = RunState.Halted;
+      
+      // Spy on decoder to verify it's not called
+      const decodeSpy = vi.spyOn(zm.decoder, 'decode');
+      
+      await zm.step();
+      
+      // Should return early without decoding
+      expect(decodeSpy).not.toHaveBeenCalled();
+      expect(zm.pc).toBe(initialPC);
+      expect(zm.state).toBe(RunState.Halted);
+    });
+
     it('should set state to WaitingForInput when instruction returns waitingForInput', async () => {
       const zm = new ZMachine(storyData, io);
       

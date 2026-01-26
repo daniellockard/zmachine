@@ -2626,4 +2626,73 @@ describe('Executor', () => {
       });
     });
   });
+
+  describe('edge cases for coverage', () => {
+    describe('getOpcodeStats with unknown opcodes', () => {
+      it('should track unknown opcodes in getOpcodeStats', async () => {
+        // Execute an 'unknown' instruction to populate unknownOpcodes
+        const unknownIns: DecodedInstruction = {
+          address: 0x1000,
+          length: 2,
+          opcode: 0xBE, // Some unknown opcode
+          opcodeName: 'unknown',
+          form: InstructionForm.Variable,
+          operandCount: OperandCount.OP0,
+          operands: [],
+        };
+
+        await executor.execute(unknownIns);
+
+        const stats = executor.getOpcodeStats();
+        expect(stats.total).toBeGreaterThan(0);
+        expect(stats.unknowns.size).toBe(1);
+        expect(stats.unknowns.get(0xBE)).toBeDefined();
+        expect(stats.unknowns.get(0xBE)!.count).toBe(1);
+        expect(stats.unknowns.get(0xBE)!.address).toBe(0x1000);
+
+        // Execute same unknown opcode again to test count increment
+        await executor.execute(unknownIns);
+        const stats2 = executor.getOpcodeStats();
+        expect(stats2.unknowns.get(0xBE)!.count).toBe(2);
+      });
+    });
+
+    describe('getOperandValue with invalid operand type', () => {
+      it('should throw on invalid operand type', () => {
+        // Create an operand with an invalid type (not LargeConstant, SmallConstant, or Variable)
+        const invalidOperand: Operand = {
+          type: 99 as OperandType, // Invalid type
+          value: 42,
+        };
+
+        expect(() => executor.getOperandValue(invalidOperand)).toThrow('Invalid operand type: 99');
+      });
+    });
+
+    describe('branch with no branch field', () => {
+      it('should return nextPC when instruction has no branch field', () => {
+        // Create instruction without branch field
+        const ins = makeInstruction('add', [
+          makeOperand(OperandType.SmallConstant, 1),
+          makeOperand(OperandType.SmallConstant, 2),
+        ], 4, { address: 0x1000 });
+
+        // Call branch directly on instruction without branch field
+        const result = executor.branch(ins, true);
+
+        expect(result.nextPC).toBe(0x1004); // address + length
+      });
+
+      it('should return nextPC for false condition with no branch field', () => {
+        const ins = makeInstruction('sub', [
+          makeOperand(OperandType.SmallConstant, 5),
+          makeOperand(OperandType.SmallConstant, 3),
+        ], 4, { address: 0x2000 });
+
+        const result = executor.branch(ins, false);
+
+        expect(result.nextPC).toBe(0x2004);
+      });
+    });
+  });
 });

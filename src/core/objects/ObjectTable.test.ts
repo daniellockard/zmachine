@@ -179,6 +179,21 @@ describe('ObjectTable', () => {
       expect(() => table.clearAttribute(1, 32)).toThrow('Invalid attribute number: 32');
       expect(() => table.clearAttribute(1, -1)).toThrow('Invalid attribute number: -1');
     });
+
+    it('should reject invalid attribute numbers in setAttribute', () => {
+      const table = new ObjectTable(memory, 3, 0x100);
+      expect(() => table.setAttribute(1, 32)).toThrow('Invalid attribute number: 32');
+      expect(() => table.setAttribute(1, -1)).toThrow('Invalid attribute number: -1');
+    });
+  });
+
+  describe('object address', () => {
+    it('should reject invalid object numbers', () => {
+      const table = new ObjectTable(memory, 3, 0x100);
+      expect(() => table.getObjectAddress(0)).toThrow('Invalid object number: 0');
+      expect(() => table.getObjectAddress(-1)).toThrow('Invalid object number: -1');
+      expect(() => table.getObjectAddress(256)).toThrow('Invalid object number: 256');
+    });
   });
 
   describe('tree manipulation', () => {
@@ -378,6 +393,26 @@ describe('Properties', () => {
       expect(() => props.putProperty(1, 5, 0x1234)).toThrow(
         'Cannot put_prop on property of length 4'
       );
+    });
+
+    it('should throw when putting non-existent property', () => {
+      const objTable = new ObjectTable(memory, 3, 0x100);
+      const props = new Properties(memory, 3, objTable);
+
+      // Property 25 doesn't exist on object 1
+      expect(() => props.putProperty(1, 25, 0x1234)).toThrow(
+        'Property 25 not found on object 1'
+      );
+    });
+
+    it('should get first word for property with length > 2', () => {
+      const objTable = new ObjectTable(memory, 3, 0x100);
+      const props = new Properties(memory, 3, objTable);
+
+      // Property 5 has length 4 bytes: 0x11, 0x22, 0x33, 0x44
+      // getProperty should return the first word (0x1122)
+      const value = props.getProperty(1, 5);
+      expect(value).toBe(0x1122);
     });
   });
 

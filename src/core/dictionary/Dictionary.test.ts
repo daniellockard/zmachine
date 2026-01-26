@@ -167,6 +167,28 @@ describe('Dictionary', () => {
       expect(entries[4].index).toBe(4);
     });
   });
+
+  describe('getEntryAddress', () => {
+    it('should throw error for negative index', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+
+      expect(() => dict.getEntryAddress(-1)).toThrow('Invalid dictionary index: -1');
+    });
+
+    it('should throw error for index >= entryCount', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+
+      expect(() => dict.getEntryAddress(5)).toThrow('Invalid dictionary index: 5');
+      expect(() => dict.getEntryAddress(100)).toThrow('Invalid dictionary index: 100');
+    });
+
+    it('should return valid address for valid index', () => {
+      const dict = new Dictionary(memory, 3, 0x200);
+
+      const addr = dict.getEntryAddress(0);
+      expect(addr).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe('Tokenizer', () => {

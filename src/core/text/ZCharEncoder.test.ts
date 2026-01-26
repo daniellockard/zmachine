@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { encodeText, encodeToZChars } from './ZCharEncoder';
+import { encodeText, encodeToZChars, encodeChar, getAlphabets } from './ZCharEncoder';
 
 describe('ZCharEncoder', () => {
   describe('encodeText', () => {
@@ -184,6 +184,23 @@ describe('ZCharEncoder', () => {
         // A0 chars don't need shift, so first Z-char is the code
         expect(zchars[0]).toBe(6 + i);
       }
+    });
+
+    it('should encode A1 characters (uppercase) with shift-4', () => {
+      // A1 contains uppercase A-Z. Since encodeToZChars lowercases input,
+      // we need to test encodeChar directly to cover this code path.
+      const alphabets = getAlphabets(3);
+      
+      // Test encoding uppercase 'A' directly
+      const result = encodeChar('A', alphabets);
+      // A1 chars need shift-4 (code 4), then the Z-code
+      // 'A' is at index 0 in A1, so Z-code is 6
+      expect(result).toEqual([4, 6]);
+      
+      // Test encoding uppercase 'Z' directly
+      const resultZ = encodeChar('Z', alphabets);
+      // 'Z' is at index 25 in A1, so Z-code is 31
+      expect(resultZ).toEqual([4, 31]);
     });
 
     it('should encode A2 punctuation with shift', () => {

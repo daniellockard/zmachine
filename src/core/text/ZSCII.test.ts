@@ -43,6 +43,14 @@ describe('ZSCII', () => {
       expect(zsciiToUnicode(161)).toBe('ß');
     });
 
+    it('should return ? for extra character codes beyond unicode table', () => {
+      // Default unicode table has 69 entries (155-223)
+      // Codes 224-251 are valid extra character range but beyond default table
+      expect(zsciiToUnicode(224)).toBe('?');
+      expect(zsciiToUnicode(240)).toBe('?');
+      expect(zsciiToUnicode(251)).toBe('?');
+    });
+
     it('should return empty for input codes', () => {
       expect(zsciiToUnicode(ZSCII.CURSOR_UP)).toBe('');
       expect(zsciiToUnicode(ZSCII.F1)).toBe('');

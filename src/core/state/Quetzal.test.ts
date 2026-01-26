@@ -237,6 +237,33 @@ describe('Quetzal', () => {
       expect(() => parseQuetzalSave(shortData)).toThrow('Save file too short');
     });
 
+    it('should reject truncated IFF file', () => {
+      // Valid FORM header but claims size larger than actual data
+      const truncatedData = new Uint8Array([
+        0x46, 0x4F, 0x52, 0x4D, // FORM
+        0x00, 0x00, 0x00, 0xFF, // size = 255 (way larger than data)
+        0x49, 0x46, 0x5A, 0x53, // IFZS
+      ]);
+      expect(() => parseQuetzalSave(truncatedData)).toThrow('IFF file truncated');
+    });
+
+    it('should reject save missing IFhd chunk', () => {
+      // Create a Quetzal file with CMem and Stks but no IFhd
+      const chunks: Uint8Array[] = [];
+      
+      // CMem chunk (compressed memory - just some zeros)
+      const cmem = new Uint8Array([0x00, 0x04]); // 5 zero bytes compressed
+      chunks.push(createChunk('CMem', cmem));
+      
+      // Stks chunk (minimal empty stack frame)
+      const stks = new Uint8Array(8);
+      chunks.push(createChunk('Stks', stks));
+      
+      const saveData = createIFZSFile(chunks);
+      
+      expect(() => parseQuetzalSave(saveData)).toThrow('Missing IFhd chunk');
+    });
+
     it('should reject save missing memory chunk', () => {
       // Create a Quetzal file with IFhd and Stks but no CMem/UMem
       const chunks: Uint8Array[] = [];

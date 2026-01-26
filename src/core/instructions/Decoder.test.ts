@@ -374,4 +374,21 @@ describe('Decoder', () => {
       expect(instruction.length).toBe(3);
     });
   });
+
+  describe('readOperand private method edge cases', () => {
+    it('should handle OperandType.Omitted in readOperand', () => {
+      // Test the private readOperand method directly with OperandType.Omitted
+      // This case is defensive code that isn't reached through normal decoding
+      // because Omitted operands are filtered out before readOperand is called
+      const memory = createMemoryWithBytes([0x00, 0x00]);
+      const decoder = new Decoder(memory, 3);
+      
+      // Access the private method using type assertion
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = (decoder as any).readOperand(0x100, OperandType.Omitted);
+      
+      expect(result.value).toBe(0);
+      expect(result.bytesRead).toBe(0);
+    });
+  });
 });

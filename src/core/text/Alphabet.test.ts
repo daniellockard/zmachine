@@ -51,6 +51,12 @@ describe('Alphabet', () => {
         expect(getAlphabetChar(19, 2, 3)).toBe(',');
       });
 
+      it('should use V1 A2 alphabet for version 1', () => {
+        // V1 has a different A2 alphabet
+        expect(getAlphabetChar(6, 2, 1)).toBe(' ');
+        expect(getAlphabetChar(7, 2, 1)).toBe('0');
+      });
+
       it('should return null for Z-char 6 (escape)', () => {
         expect(getAlphabetChar(6, 2, 3)).toBeNull();
       });
@@ -66,6 +72,14 @@ describe('Alphabet', () => {
         
         expect(getAlphabetChar(6, 0, 3, custom)).toBe('z');
         expect(getAlphabetChar(6, 1, 3, custom)).toBe('Z');
+      });
+    });
+
+    describe('invalid alphabet', () => {
+      it('should return null for invalid alphabet values', () => {
+        // Test the default case in the switch statement
+        // Using type assertion to bypass TypeScript's type checking for coverage
+        expect(getAlphabetChar(6, 99 as 0 | 1 | 2, 3)).toBeNull();
       });
     });
   });

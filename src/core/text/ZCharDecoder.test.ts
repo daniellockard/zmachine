@@ -332,6 +332,43 @@ describe('ZCharDecoder', () => {
     });
   });
 
+  describe('setCustomAlphabets', () => {
+    it('should use custom alphabet tables when set', () => {
+      // Z-chars 6, 7, 8 would normally be 'a', 'b', 'c' in default A0
+      // With custom alphabets, we'll map them to 'x', 'y', 'z' instead
+      const words = packZChars([6, 7, 8]);
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      const decoder = new ZCharDecoder(memory, 5, 0x40);
+
+      // Custom alphabet: z-char 6 -> index 0, z-char 7 -> index 1, etc.
+      // Position 0 = 'x', 1 = 'y', 2 = 'z', rest are normal letters
+      const customA0 = 'xyzdefghijklmnopqrstuvwxyz';
+      const customA1 = 'XYZDEFGHIJKLMNOPQRSTUVWXYZ';
+      const customA2 = ' \n0123456789.,!?_#\'"~/\\-:()';
+      decoder.setCustomAlphabets([customA0, customA1, customA2]);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('xyz');
+    });
+
+    it('should use custom A1 alphabet with shift', () => {
+      // Shift to A1 (z-char 4), then z-char 6 which maps to 'X' in custom A1
+      const words = packZChars([4, 6]);
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      const decoder = new ZCharDecoder(memory, 5, 0x40);
+
+      const customA0 = 'xyzdefghijklmnopqrstuvwxyz';
+      const customA1 = 'XYZDEFGHIJKLMNOPQRSTUVWXYZ';
+      const customA2 = ' \n0123456789.,!?_#\'"~/\\-:()';
+      decoder.setCustomAlphabets([customA0, customA1, customA2]);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('X');
+    });
+  });
+
   describe('decodeString', () => {
     it('should be an alias for decode', () => {
       const words = packZChars([6, 7, 8]); // "abc"

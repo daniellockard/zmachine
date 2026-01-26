@@ -304,4 +304,55 @@ describe('Stack', () => {
       expect(newStack.pop()).toBe(50);
     });
   });
+
+  describe('unwindTo', () => {
+    beforeEach(() => {
+      stack.initialize(2);
+    });
+
+    it('should throw for invalid target depth less than 1', () => {
+      expect(() => stack.unwindTo(0)).toThrow('Invalid stack frame pointer: 0');
+    });
+
+    it('should throw for target depth greater than current depth', () => {
+      expect(() => stack.unwindTo(5)).toThrow('Invalid stack frame pointer: 5');
+    });
+
+    it('should unwind directly to target frame when at target depth', () => {
+      // Stack has 1 frame, unwind to depth 1 should pop and return that frame
+      const frame = stack.unwindTo(1);
+      expect(frame.localCount).toBe(2);
+      expect(stack.depth).toBe(0);
+    });
+
+    it('should unwind through multiple frames to reach target depth', () => {
+      // Push additional frames to create depth: 1 -> 2 -> 3 -> 4
+      stack.pushFrame(0x1000, 0x10, 3, 1);  // depth 2
+      stack.pushFrame(0x2000, 0x11, 4, 2);  // depth 3
+      stack.pushFrame(0x3000, 0x12, 5, 3);  // depth 4
+      
+      expect(stack.depth).toBe(4);
+      
+      // Unwind to depth 2 - should pop frames at depth 4 and 3, then return frame at depth 2
+      const frame = stack.unwindTo(2);
+      
+      expect(frame.returnPC).toBe(0x1000);
+      expect(frame.localCount).toBe(3);
+      expect(stack.depth).toBe(1);  // Only initial frame remains
+    });
+
+    it('should unwind through all frames except initial', () => {
+      stack.pushFrame(0x1000, 0x10, 3, 1);  // depth 2
+      stack.pushFrame(0x2000, 0x11, 4, 2);  // depth 3
+      
+      expect(stack.depth).toBe(3);
+      
+      // Unwind to depth 1 - pops frames 3 and 2, returns initial frame
+      const frame = stack.unwindTo(1);
+      
+      expect(frame.returnPC).toBe(0);  // Initial frame has returnPC 0
+      expect(frame.localCount).toBe(2);
+      expect(stack.depth).toBe(0);
+    });
+  });
 });

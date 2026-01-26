@@ -22,7 +22,7 @@ import { ALPHABET_A0, ALPHABET_A1, ALPHABET_A2, ALPHABET_A2_V1 } from './Alphabe
 /**
  * Get the alphabet tables for a version
  */
-function getAlphabets(version: ZVersion): [string, string, string] {
+export function getAlphabets(version: ZVersion): [string, string, string] {
   const a2 = version === 1 ? ALPHABET_A2_V1 : ALPHABET_A2;
   return [ALPHABET_A0, ALPHABET_A1, a2];
 }
@@ -48,7 +48,7 @@ function findInAlphabets(
  * Encode a character to Z-characters
  * Returns an array of Z-char codes (1-3 codes depending on character)
  */
-function encodeChar(
+export function encodeChar(
   char: string,
   alphabets: [string, string, string]
 ): number[] {

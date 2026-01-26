@@ -224,5 +224,22 @@ describe('Variables', () => {
       expect(() => variables.write(-1, 0)).toThrow();
       expect(() => variables.write(256, 0)).toThrow();
     });
+
+    it('should throw for invalid variable number in peek', () => {
+      expect(() => variables.peek(-1)).toThrow('Invalid variable number: -1');
+      expect(() => variables.peek(256)).toThrow('Invalid variable number: 256');
+    });
+  });
+
+  describe('store and load', () => {
+    it('should store a value to a variable', () => {
+      variables.store(16, 1234);
+      expect(variables.read(16)).toBe(1234);
+    });
+
+    it('should load a value from a variable', () => {
+      variables.write(16, 5678);
+      expect(variables.load(16)).toBe(5678);
+    });
   });
 });
