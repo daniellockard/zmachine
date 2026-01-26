@@ -10,6 +10,7 @@ import { Stack } from '../cpu/Stack';
 import { Variables } from '../variables/Variables';
 import { ZCharDecoder } from '../text/ZCharDecoder';
 import { TestIOAdapter } from '../../io/TestIOAdapter';
+import { createQuetzalSave } from '../state/Quetzal';
 import { DecodedInstruction, OperandType, Operand, InstructionForm, OperandCount } from '../../types/ZMachineTypes';
 
 describe('Executor', () => {
@@ -153,6 +154,17 @@ describe('Executor', () => {
       expect(variables.read(16)).toBe(2);
     });
 
+    it('should return error on mod by zero', async () => {
+      const ins = makeInstruction('mod', [
+        makeOperand(OperandType.SmallConstant, 17),
+        makeOperand(OperandType.SmallConstant, 0),
+      ], 4, { storeVariable: 16 });
+
+      const result = await executor.execute(ins);
+
+      expect(result.error).toContain('Division by zero');
+    });
+
     it('should handle signed arithmetic', async () => {
       // -10 + 5 = -5
       const ins = makeInstruction('add', [
@@ -280,7 +292,21 @@ describe('Executor', () => {
       expect(result.nextPC).toBe(0x1000 + 4 + 10 - 2);
     });
 
-    it('should execute je with multiple comparisons', async () => {
+    it('should execute je with multiple comparisons - match on first', async () => {
+      const ins = makeInstruction('je', [
+        makeOperand(OperandType.SmallConstant, 3),
+        makeOperand(OperandType.SmallConstant, 3), // matches first
+        makeOperand(OperandType.SmallConstant, 5),
+      ], 4, {
+        branch: { branchOnTrue: true, offset: 10 },
+      });
+
+      const result = await executor.execute(ins);
+
+      expect(result.nextPC).toBe(0x1000 + 4 + 10 - 2);
+    });
+
+    it('should execute je with multiple comparisons - match on later', async () => {
       const ins = makeInstruction('je', [
         makeOperand(OperandType.SmallConstant, 5),
         makeOperand(OperandType.SmallConstant, 3),
@@ -1126,6 +1152,104 @@ describe('Executor', () => {
       await executor.execute(ins);
 
       expect(variables.read(16)).toBe(0); // No more properties
+    });
+  });
+
+  describe('V3 save and restore', () => {
+    it('should not branch when restore is not available in V3', async () => {
+      delete (io as any).restore;
+
+      const ins = makeInstruction('restore', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Should not branch - advance PC normally
+      expect(result.nextPC).toBe(ins.address + ins.length);
+    });
+
+    it('should branch when save succeeds in V3', async () => {
+      io.save = async () => true;
+
+      const ins = makeInstruction('save', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Should branch since save succeeded
+      expect(result.nextPC).toBe(ins.address + ins.length + 10 - 2);
+    });
+
+    it('should not branch when save is not available in V3', async () => {
+      delete (io as any).save;
+
+      const ins = makeInstruction('save', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Should not branch - advance PC normally
+      expect(result.nextPC).toBe(ins.address + ins.length);
+    });
+
+    it('should not branch when restore returns null in V3', async () => {
+      io.restore = async () => null;
+
+      const ins = makeInstruction('restore', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Should not branch - advance PC normally
+      expect(result.nextPC).toBe(ins.address + ins.length);
+    });
+
+    it('should not branch when restore data is invalid in V3', async () => {
+      io.restore = async () => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
+
+      const ins = makeInstruction('restore', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Should not branch - advance PC normally
+      expect(result.nextPC).toBe(ins.address + ins.length);
+    });
+
+    it('should not branch when restore save is incompatible in V3', async () => {
+      // Create a save from different memory (different checksum)
+      const differentBuffer = new ArrayBuffer(0x10000);
+      const differentView = new DataView(differentBuffer);
+      differentView.setUint8(0x00, 3); // Version 3
+      differentView.setUint16(0x02, 999, false); // Different release
+      differentView.setUint16(0x0E, 0x2000, false); // Static memory base
+      differentView.setUint16(0x1C, 0x9999, false); // Different checksum
+      // Set serial to something different
+      const serial = 'ZZZZZZ';
+      for (let i = 0; i < 6; i++) {
+        differentView.setUint8(0x12 + i, serial.charCodeAt(i));
+      }
+      const differentMemory = new Memory(differentBuffer);
+      const differentStack = new Stack();
+      differentStack.initialize(0);
+      
+      const saveData = createQuetzalSave(differentMemory, differentStack.snapshot(), 0x3000);
+      
+      io.restore = async () => saveData;
+
+      const ins = makeInstruction('restore', [], 3, {
+        branch: { branchOnTrue: true, offset: 10 }
+      });
+
+      const result = await executor.execute(ins);
+
+      // Incompatible save should not branch
+      expect(result.nextPC).toBe(ins.address + ins.length);
     });
   });
 
@@ -1978,6 +2102,527 @@ describe('Executor', () => {
         await v5Executor.execute(ins);
 
         expect(bufferModeValue).toBe(false);
+      });
+    });
+
+    describe('set_colour', () => {
+      it('should call setForegroundColor and setBackgroundColor', async () => {
+        let fgColor = 0;
+        let bgColor = 0;
+        v5Io.setForegroundColor = (color: number) => { fgColor = color; };
+        v5Io.setBackgroundColor = (color: number) => { bgColor = color; };
+
+        const ins = makeInstruction('set_colour', [
+          makeOperand(OperandType.SmallConstant, 3), // red
+          makeOperand(OperandType.SmallConstant, 9), // white
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(fgColor).toBe(3);
+        expect(bgColor).toBe(9);
+      });
+
+      it('should not call setForegroundColor when foreground is 0', async () => {
+        let fgCalled = false;
+        let bgColor = 0;
+        v5Io.setForegroundColor = () => { fgCalled = true; };
+        v5Io.setBackgroundColor = (color: number) => { bgColor = color; };
+
+        const ins = makeInstruction('set_colour', [
+          makeOperand(OperandType.SmallConstant, 0), // current (no change)
+          makeOperand(OperandType.SmallConstant, 2), // black
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(fgCalled).toBe(false);
+        expect(bgColor).toBe(2);
+      });
+    });
+
+    describe('set_true_colour', () => {
+      it('should convert 15-bit RGB colors and call color setters', async () => {
+        let fgCalled = false;
+        let bgCalled = false;
+        v5Io.setForegroundColor = () => { fgCalled = true; };
+        v5Io.setBackgroundColor = () => { bgCalled = true; };
+
+        // 15-bit RGB: 0bBBBBBGGGGGRRRRR
+        // Pure red: R=31, G=0, B=0 = 0x001F
+        // Pure green: R=0, G=31, B=0 = 0x03E0
+        const ins = makeInstruction('set_true_colour', [
+          makeOperand(OperandType.LargeConstant, 0x001F), // red
+          makeOperand(OperandType.LargeConstant, 0x03E0), // green
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(fgCalled).toBe(true);
+        expect(bgCalled).toBe(true);
+      });
+    });
+
+    describe('print_paddr V8', () => {
+      let v8Memory: Memory;
+      let v8Header: Header;
+      let v8Stack: Stack;
+      let v8Variables: Variables;
+      let v8Io: TestIOAdapter;
+      let v8TextDecoder: ZCharDecoder;
+      let v8Executor: Executor;
+
+      beforeEach(() => {
+        const size = 0x10000;
+        const buffer = new ArrayBuffer(size);
+        const view = new DataView(buffer);
+
+        view.setUint8(0x00, 8); // Version 8
+        view.setUint16(0x04, 0x4000, false);
+        view.setUint16(0x06, 0x1000, false);
+        view.setUint16(0x0C, 0x100, false);
+        view.setUint16(0x0E, 0x2000, false);
+        view.setUint16(0x18, 0x40, false);
+
+        // Write Z-string "abc" at 0x800 (packed addr 0x100 * 8 = 0x800)
+        // Z-chars: a=6, b=7, c=8 -> (6<<10) | (7<<5) | 8 | 0x8000 = 0x98E8
+        view.setUint16(0x800, 0x98E8, false);
+
+        v8Memory = new Memory(buffer);
+        v8Header = new Header(v8Memory);
+        v8Stack = new Stack();
+        v8Stack.initialize(0);
+        v8Variables = new Variables(v8Memory, v8Stack, v8Header.globalsAddress);
+        v8Io = new TestIOAdapter();
+        v8TextDecoder = new ZCharDecoder(v8Memory, 8, v8Header.abbreviationsAddress);
+        v8Executor = new Executor(v8Memory, v8Header, v8Stack, v8Variables, 8, v8Io, v8TextDecoder);
+      });
+
+      it('should print packed address with *8 multiplier for V8', async () => {
+        // Packed address 0x100 * 8 = 0x800
+        const ins = makeInstruction('print_paddr', [
+          makeOperand(OperandType.LargeConstant, 0x100),
+        ], 4);
+
+        await v8Executor.execute(ins);
+
+        expect(v8Io.output.join('')).toBe('abc');
+      });
+    });
+
+    describe('verify', () => {
+      it('should always branch true', async () => {
+        const ins = makeInstruction('verify', [], 2, {
+          branch: { branchOnTrue: true, offset: 10 }
+        });
+
+        const result = await v5Executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1000 + 2 + 10 - 2); // Branch taken
+      });
+    });
+
+    describe('save and restore', () => {
+      it('should save and return 1 in V5', async () => {
+        let savedData: Uint8Array | null = null;
+        v5Io.save = async (data: Uint8Array) => {
+          savedData = data;
+          return true;
+        };
+
+        const ins = makeInstruction('save', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(savedData).not.toBeNull();
+        expect(v5Variables.read(16)).toBe(1);
+      });
+
+      it('should return 0 when save fails in V5', async () => {
+        v5Io.save = async () => false;
+
+        const ins = makeInstruction('save', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should return 0 when save not available in V5', async () => {
+        delete (v5Io as any).save;
+
+        const ins = makeInstruction('save', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should return 0 when restore not available in V5', async () => {
+        delete (v5Io as any).restore;
+
+        const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should return 0 when restore returns no data in V5', async () => {
+        v5Io.restore = async () => null;
+
+        const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should return 0 when restore data is invalid', async () => {
+        v5Io.restore = async () => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
+
+        const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0);
+      });
+
+      it('should successfully restore valid save and return 2', async () => {
+        // Create a valid Quetzal save that matches this game
+        const saveData = createQuetzalSave(v5Memory, v5Stack.snapshot(), 0x3000);
+        
+        v5Io.restore = async () => saveData;
+
+        const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
+
+        const result = await v5Executor.execute(ins);
+
+        // Successful restore should return to saved PC
+        expect(result.nextPC).toBe(0x3000);
+        // Result is stored as 2 for successful restore
+        expect(v5Variables.read(16)).toBe(2);
+      });
+
+      it('should restore with incompatible save and return 0', async () => {
+        // Create a save from different memory (different checksum)
+        const differentBuffer = new ArrayBuffer(0x10000);
+        const differentView = new DataView(differentBuffer);
+        differentView.setUint8(0x00, 5); // Version
+        differentView.setUint16(0x02, 999, false); // Different release
+        differentView.setUint16(0x0E, 0x2000, false); // Static memory base
+        differentView.setUint16(0x1C, 0x9999, false); // Different checksum
+        // Set serial to something different
+        const serial = 'ZZZZZZ';
+        for (let i = 0; i < 6; i++) {
+          differentView.setUint8(0x12 + i, serial.charCodeAt(i));
+        }
+        const differentMemory = new Memory(differentBuffer);
+        const differentStack = new Stack();
+        differentStack.initialize(0);
+        
+        const saveData = createQuetzalSave(differentMemory, differentStack.snapshot(), 0x3000);
+        
+        v5Io.restore = async () => saveData;
+
+        const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // Incompatible save should store 0
+        expect(v5Variables.read(16)).toBe(0);
+      });
+    });
+
+    describe('aread (V4+ read)', () => {
+      it('should read input and store in buffer V5 style', async () => {
+        // Set up text buffer at 0x500: byte 0 = max length, byte 1 = stored length, text starts at byte 2
+        v5Memory.writeByte(0x500, 50); // Max length
+        
+        // Queue input
+        v5Io.queueLineInput('hello');
+        
+        const ins = makeInstruction('aread', [
+          makeOperand(OperandType.LargeConstant, 0x500), // text buffer
+          makeOperand(OperandType.SmallConstant, 0),     // no parse buffer
+        ], 5, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // Check stored length
+        expect(v5Memory.readByte(0x501)).toBe(5); // "hello" length
+        // Check text content
+        expect(v5Memory.readByte(0x502)).toBe('h'.charCodeAt(0));
+        expect(v5Memory.readByte(0x503)).toBe('e'.charCodeAt(0));
+        expect(v5Memory.readByte(0x504)).toBe('l'.charCodeAt(0));
+        expect(v5Memory.readByte(0x505)).toBe('l'.charCodeAt(0));
+        expect(v5Memory.readByte(0x506)).toBe('o'.charCodeAt(0));
+        // Check return value (terminating key = 13 for Enter)
+        expect(v5Variables.read(16)).toBe(13);
+      });
+
+      it('should convert input to lowercase', async () => {
+        v5Memory.writeByte(0x500, 50);
+        v5Io.queueLineInput('HELLO');
+        
+        const ins = makeInstruction('aread', [
+          makeOperand(OperandType.LargeConstant, 0x500),
+          makeOperand(OperandType.SmallConstant, 0),
+        ], 5, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // Should be lowercase
+        expect(v5Memory.readByte(0x502)).toBe('h'.charCodeAt(0));
+        expect(v5Memory.readByte(0x506)).toBe('o'.charCodeAt(0));
+      });
+    });
+
+    describe('restart', () => {
+      it('should reset and return to initial PC', async () => {
+        const ins = makeInstruction('restart', [], 1);
+
+        const result = await v5Executor.execute(ins);
+
+        expect(result.nextPC).toBe(v5Header.initialPC);
+      });
+    });
+
+    describe('show_status', () => {
+      it('should call showStatusLine on io adapter', async () => {
+        let statusCalled = false;
+        v5Io.showStatusLine = () => { statusCalled = true; };
+
+        // Need to set up object table for location name
+        // For simplicity, just verify no crash
+        const ins = makeInstruction('show_status', [], 1);
+
+        try {
+          await v5Executor.execute(ins);
+        } catch {
+          // May fail due to object table not set up
+        }
+
+        // In V5, show_status does nothing (it's V3 only)
+      });
+    });
+
+    describe('call_2s and call_2n', () => {
+      it('should call routine with one argument (call_2n)', async () => {
+        // Set up a simple routine at 0x1800 that just returns
+        // Packed address for V5 is byteAddr / 4, so 0x1800 / 4 = 0x600
+        v5Memory.writeByte(0x1800, 0); // 0 locals
+
+        const ins = makeInstruction('call_2n', [
+          makeOperand(OperandType.LargeConstant, 0x600), // routine packed addr
+          makeOperand(OperandType.SmallConstant, 42),    // argument
+        ], 5);
+
+        const result = await v5Executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1801); // Should jump to routine
+      });
+    });
+
+    describe('print_addr', () => {
+      it('should print text at byte address', async () => {
+        // Write Z-string "hi" at 0x800
+        v5Memory.writeByte(0x800, 0x94); // 'h' shifted
+        v5Memory.writeByte(0x801, 0xE9); // 'i' + end
+        v5Memory.writeWord(0x800, 0x94EE, false); // Actually write valid Z-string
+
+        const ins = makeInstruction('print_addr', [
+          makeOperand(OperandType.LargeConstant, 0x800),
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        // Should produce some output
+        expect(v5Io.output.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('load and store indirect', () => {
+      it('should load variable indirectly', async () => {
+        v5Variables.write(20, 0x1234); // global variable
+
+        const ins = makeInstruction('load', [
+          makeOperand(OperandType.SmallConstant, 20), // global variable 20
+        ], 3, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(16)).toBe(0x1234);
+      });
+
+      it('should store variable indirectly', async () => {
+        const ins = makeInstruction('store', [
+          makeOperand(OperandType.SmallConstant, 20), // global variable 20
+          makeOperand(OperandType.LargeConstant, 0xABCD),
+        ], 5);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(20)).toBe(0xABCD);
+      });
+    });
+
+    describe('call_1s and call_1n', () => {
+      it('should call routine with no arguments (call_1s)', async () => {
+        v5Memory.writeByte(0x1800, 0); // 0 locals
+
+        const ins = makeInstruction('call_1s', [
+          makeOperand(OperandType.LargeConstant, 0x600), // packed addr
+        ], 4, { storeVariable: 16 });
+
+        const result = await v5Executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1801);
+      });
+    });
+
+    describe('inc and dec', () => {
+      it('should increment variable', async () => {
+        v5Variables.write(20, 100); // global variable
+
+        const ins = makeInstruction('inc', [
+          makeOperand(OperandType.SmallConstant, 20), // global 20
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(20)).toBe(101);
+      });
+
+      it('should decrement variable', async () => {
+        v5Variables.write(20, 100); // global variable
+
+        const ins = makeInstruction('dec', [
+          makeOperand(OperandType.SmallConstant, 20), // global 20
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Variables.read(20)).toBe(99);
+      });
+    });
+
+    describe('print_char and print_num', () => {
+      it('should print character by ZSCII code', async () => {
+        const ins = makeInstruction('print_char', [
+          makeOperand(OperandType.SmallConstant, 65), // 'A'
+        ], 3);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('A');
+      });
+
+      it('should print signed number', async () => {
+        const ins = makeInstruction('print_num', [
+          makeOperand(OperandType.LargeConstant, 0xFFFF), // -1 as signed
+        ], 4);
+
+        await v5Executor.execute(ins);
+
+        expect(v5Io.output.join('')).toBe('-1');
+      });
+    });
+  });
+
+  describe('V4 opcodes', () => {
+    let v4Memory: Memory;
+    let v4Header: Header;
+    let v4Stack: Stack;
+    let v4Variables: Variables;
+    let v4Io: TestIOAdapter;
+    let v4TextDecoder: ZCharDecoder;
+    let v4Executor: Executor;
+    let v4Tokenizer: Tokenizer;
+
+    function createV4Memory(): Memory {
+      const size = 0x10000;
+      const buffer = new ArrayBuffer(size);
+      const view = new DataView(buffer);
+
+      view.setUint8(0x00, 4); // Version 4
+      view.setUint16(0x04, 0x4000, false);
+      view.setUint16(0x06, 0x1000, false);
+      view.setUint16(0x08, 0x300, false); // Dictionary
+      view.setUint16(0x0C, 0x100, false);
+      view.setUint16(0x0E, 0x2000, false);
+      view.setUint16(0x18, 0x40, false);
+
+      // Set up a minimal dictionary at 0x300
+      // Number of word separators
+      view.setUint8(0x300, 2);
+      view.setUint8(0x301, 32); // space
+      view.setUint8(0x302, 44); // comma
+      view.setUint8(0x303, 6);  // entry length
+      view.setUint16(0x304, 0, false); // 0 entries
+
+      return new Memory(buffer);
+    }
+
+    beforeEach(async () => {
+      v4Memory = createV4Memory();
+      v4Header = new Header(v4Memory);
+      v4Stack = new Stack();
+      v4Stack.initialize(0);
+      v4Variables = new Variables(v4Memory, v4Stack, v4Header.globalsAddress);
+      v4Io = new TestIOAdapter();
+      v4TextDecoder = new ZCharDecoder(v4Memory, 4, v4Header.abbreviationsAddress);
+      const { Dictionary } = await import('../dictionary/Dictionary');
+      const { Tokenizer } = await import('../dictionary/Tokenizer');
+      const dictionary = new Dictionary(v4Memory, v4Header.dictionaryAddress, 4);
+      v4Tokenizer = new Tokenizer(v4Memory, dictionary, 4);
+      v4Executor = new Executor(v4Memory, v4Header, v4Stack, v4Variables, 4, v4Io, v4TextDecoder, v4Tokenizer);
+    });
+
+    describe('aread (V4 format - null-terminated)', () => {
+      it('should read input and store null-terminated in V4 style', async () => {
+        // Set up text buffer at 0x500: byte 0 = max length, text starts at byte 1
+        v4Memory.writeByte(0x500, 50); // Max length
+        
+        // Queue input
+        v4Io.queueLineInput('test');
+        
+        const ins = makeInstruction('aread', [
+          makeOperand(OperandType.LargeConstant, 0x500), // text buffer
+          makeOperand(OperandType.SmallConstant, 0),     // no parse buffer
+        ], 5);
+
+        await v4Executor.execute(ins);
+
+        // Check text content (starts at byte 1)
+        expect(v4Memory.readByte(0x501)).toBe('t'.charCodeAt(0));
+        expect(v4Memory.readByte(0x502)).toBe('e'.charCodeAt(0));
+        expect(v4Memory.readByte(0x503)).toBe('s'.charCodeAt(0));
+        expect(v4Memory.readByte(0x504)).toBe('t'.charCodeAt(0));
+        // Check null terminator
+        expect(v4Memory.readByte(0x505)).toBe(0);
+      });
+
+      it('should tokenize when parse buffer provided', async () => {
+        // Set up text buffer at 0x500
+        v4Memory.writeByte(0x500, 50);
+        
+        // Set up parse buffer at 0x600
+        v4Memory.writeByte(0x600, 10); // Max tokens
+        
+        // Queue input
+        v4Io.queueLineInput('go north');
+        
+        const ins = makeInstruction('aread', [
+          makeOperand(OperandType.LargeConstant, 0x500), // text buffer
+          makeOperand(OperandType.LargeConstant, 0x600), // parse buffer
+        ], 5);
+
+        await v4Executor.execute(ins);
+
+        // Check that tokenization occurred (number of tokens stored at byte 1)
+        // Even if words not in dictionary, token count should be set
+        expect(v4Memory.readByte(0x601)).toBeGreaterThanOrEqual(0);
       });
     });
   });

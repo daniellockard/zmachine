@@ -299,6 +299,18 @@ describe('ZMachine', () => {
       
       await expect(zm.provideInput('test')).rejects.toThrow('Not waiting for input');
     });
+
+    it('should transition to Running state when waiting for input', async () => {
+      const zm = new ZMachine(storyData, io);
+      
+      // We need to manually set state to WaitingForInput for this test
+      // Access private state for testing
+      (zm as any)._state = RunState.WaitingForInput;
+      
+      await zm.provideInput('test');
+      
+      expect(zm.state).toBe(RunState.Running);
+    });
   });
 
   describe('restart', () => {
