@@ -1,6 +1,6 @@
 /**
  * Core Z-machine types
- * 
+ *
  * These types are used throughout the emulator and have no external dependencies.
  */
 
@@ -38,8 +38,19 @@ export type PropertyNumber = number;
 export type AttributeNumber = number;
 
 /**
+ * True color special values for set_true_colour opcode
+ * Reference: Z-Machine Specification §8.3.4
+ */
+export const TrueColor = {
+  /** Keep the current color (do not change) */
+  KEEP_CURRENT: 0xffff,
+  /** Use the default color */
+  USE_DEFAULT: 0xfffe,
+} as const;
+
+/**
  * Operand types as encoded in instruction operand type bytes
- * 
+ *
  * §4.2: Operand types
  */
 export enum OperandType {
@@ -55,7 +66,7 @@ export enum OperandType {
 
 /**
  * Instruction forms
- * 
+ *
  * §4.3: Instruction forms
  */
 export enum InstructionForm {
@@ -71,7 +82,7 @@ export enum InstructionForm {
 
 /**
  * Operand count categories
- * 
+ *
  * §4.3.1: Operand counts
  */
 export enum OperandCount {

@@ -1,9 +1,9 @@
 /**
  * Web I/O Adapter
- * 
+ *
  * Browser-based I/O adapter that connects the Z-machine to a web interface.
  * Uses DOM elements for output and captures keyboard input.
- * 
+ *
  * @module
  */
 
@@ -35,41 +35,51 @@ export class WebIOAdapter implements IOAdapter {
   private status?: HTMLElement;
   private onQuit?: () => void;
   private onRestart?: () => void;
-  
+
   private lineResolve?: (result: ReadLineResult) => void;
   private charResolve?: (char: number) => void;
-  private version: ZVersion = 3;
-  
+  private currentVersion: ZVersion = 3;
+
   /** Current active window (0 = lower/main, 1 = upper/status) */
   private currentWindow: number = 0;
-  
+
   /** Number of lines in upper window */
-  private upperWindowLines: number = 0;
-  
+  private upperWindowLineCount: number = 0;
+
+  /** Get current version */
+  getVersion(): ZVersion {
+    return this.currentVersion;
+  }
+
+  /** Get upper window line count */
+  getUpperWindowLines(): number {
+    return this.upperWindowLineCount;
+  }
+
   /** Buffer for upper window text (V4+ games write directly) */
   private upperWindowText: string = '';
-  
+
   /** Current text style (bitmask: 1=reverse, 2=bold, 4=italic, 8=fixed) */
   private textStyle: number = 0;
-  
+
   /** Cursor position in upper window (1-based) */
   private upperCursor: { line: number; column: number } = { line: 1, column: 1 };
 
   /** Transcript buffer for recording game session */
   private transcript: string[] = [];
-  
+
   /** Whether transcript is currently enabled */
   private transcriptEnabled: boolean = false;
 
   /** Recorded inputs for playback */
   private recordedInputs: string[] = [];
-  
+
   /** Whether recording is enabled */
   private isRecording: boolean = false;
-  
+
   /** Playback queue for replaying recorded inputs */
   private playbackQueue: string[] = [];
-  
+
   /** Whether playback mode is active */
   private isPlayingBack: boolean = false;
 
@@ -88,15 +98,15 @@ export class WebIOAdapter implements IOAdapter {
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
-        
+
         // Record input if recording
         if (this.isRecording) {
           this.recordedInputs.push(text);
         }
-        
+
         // Echo input to output
         this.print(text + '\n');
-        
+
         this.lineResolve({ text, terminator: 13 });
         this.lineResolve = undefined;
       } else if (this.charResolve) {
@@ -112,7 +122,7 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   initialize(version: ZVersion): void {
-    this.version = version;
+    this.currentVersion = version;
     this.output.innerHTML = '';
     this.transcript = [];
     this.recordedInputs = [];
@@ -123,7 +133,7 @@ export class WebIOAdapter implements IOAdapter {
     if (this.transcriptEnabled) {
       this.transcript.push(text);
     }
-    
+
     // Route output based on current window
     if (this.currentWindow === 1 && this.status) {
       // Upper window (status line area) - buffer text for display
@@ -135,17 +145,17 @@ export class WebIOAdapter implements IOAdapter {
       // Lower window (main output)
       const span = document.createElement('span');
       span.textContent = text;
-      
+
       // Apply text styles
       this.applyTextStyle(span);
-      
+
       this.output.appendChild(span);
-      
+
       // Auto-scroll to bottom
       this.output.scrollTop = this.output.scrollHeight;
     }
   }
-  
+
   /**
    * Apply current text style and colors to an element
    * Style bits: 1=reverse, 2=bold, 4=italic, 8=fixed-width
@@ -160,7 +170,7 @@ export class WebIOAdapter implements IOAdapter {
         element.style.backgroundColor = this.backgroundColor;
       }
     }
-    
+
     if (this.textStyle & 1) {
       // Reverse video - swap foreground and background
       const fg = this.foregroundColor || 'var(--text-color, #00ff00)';
@@ -197,20 +207,20 @@ export class WebIOAdapter implements IOAdapter {
       const text = this.playbackQueue.shift()!;
       this.print('>' + text + '\n');
       // Small delay to make playback visible
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
       return { text, terminator: 13 };
     }
-    
+
     // Show prompt
     this.print('>');
-    
+
     // Focus input and wait for Enter
     this.input.focus();
     this.input.maxLength = maxLength;
 
     return new Promise((resolve) => {
       this.lineResolve = resolve;
-      
+
       // Timeout support: timeout is in tenths of a second
       if (timeout && timeout > 0) {
         const timeoutMs = timeout * 100;
@@ -232,7 +242,7 @@ export class WebIOAdapter implements IOAdapter {
 
     return new Promise((resolve) => {
       this.charResolve = resolve;
-      
+
       // Timeout support: timeout is in tenths of a second
       if (timeout && timeout > 0) {
         const timeoutMs = timeout * 100;
@@ -247,7 +257,12 @@ export class WebIOAdapter implements IOAdapter {
     });
   }
 
-  showStatusLine(location: string, scoreOrHours: number, turnsOrMinutes: number, isTime: boolean): void {
+  showStatusLine(
+    location: string,
+    scoreOrHours: number,
+    turnsOrMinutes: number,
+    isTime: boolean
+  ): void {
     if (!this.status) return;
 
     const rightSide = isTime
@@ -275,7 +290,7 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   splitWindow(lines: number): void {
-    this.upperWindowLines = lines;
+    this.upperWindowLineCount = lines;
     // Clear upper window when resizing
     if (lines > 0) {
       this.upperWindowText = '';
@@ -321,19 +336,19 @@ export class WebIOAdapter implements IOAdapter {
 
   /** Z-machine color palette */
   private static readonly COLORS: Record<number, string> = {
-    2: '#000000',  // black
-    3: '#ff0000',  // red
-    4: '#00ff00',  // green
-    5: '#ffff00',  // yellow
-    6: '#0000ff',  // blue
-    7: '#ff00ff',  // magenta
-    8: '#00ffff',  // cyan
-    9: '#ffffff',  // white
+    2: '#000000', // black
+    3: '#ff0000', // red
+    4: '#00ff00', // green
+    5: '#ffff00', // yellow
+    6: '#0000ff', // blue
+    7: '#ff00ff', // magenta
+    8: '#00ffff', // cyan
+    9: '#ffffff', // white
   };
 
   /** Current foreground color (CSS) */
   private foregroundColor: string = '';
-  
+
   /** Current background color (CSS) */
   private backgroundColor: string = '';
 
@@ -369,28 +384,28 @@ export class WebIOAdapter implements IOAdapter {
     // Effect 2 = start/play
     if (effect !== 2) return;
     if (number !== 1 && number !== 2) return;
-    
+
     try {
       // Lazy init audio context (must be after user interaction)
       if (!this.audioContext) {
         this.audioContext = new AudioContext();
       }
-      
+
       const ctx = this.audioContext;
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
-      
+
       // Frequency: high beep = 800Hz, low beep = 400Hz
       oscillator.frequency.value = number === 1 ? 800 : 400;
       oscillator.type = 'square';
-      
+
       // Volume: convert 1-8 scale to 0-1
       const vol = volume === 255 ? 0.3 : Math.min(volume / 8, 1) * 0.5;
       gainNode.gain.value = vol;
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
-      
+
       // Short beep duration
       oscillator.start();
       oscillator.stop(ctx.currentTime + 0.1);
@@ -405,7 +420,7 @@ export class WebIOAdapter implements IOAdapter {
       this.output.innerHTML = '';
       this.upperWindowText = '';
       if (this.status) this.status.textContent = '';
-      this.upperWindowLines = 0;
+      this.upperWindowLineCount = 0;
       this.currentWindow = 0;
     } else if (window === -2) {
       // Clear all, keep split
@@ -435,10 +450,13 @@ export class WebIOAdapter implements IOAdapter {
   async save(data: Uint8Array): Promise<boolean> {
     try {
       // Create a Blob from the save data (use slice to ensure plain ArrayBuffer)
-      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+      const buffer = data.buffer.slice(
+        data.byteOffset,
+        data.byteOffset + data.byteLength
+      ) as ArrayBuffer;
       const blob = new Blob([buffer], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
-      
+
       // Create download link
       const a = document.createElement('a');
       a.href = url;
@@ -447,11 +465,11 @@ export class WebIOAdapter implements IOAdapter {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       // Also store in localStorage as backup
       const base64 = btoa(String.fromCharCode(...data));
       localStorage.setItem('zmachine-save', base64);
-      
+
       this.print('[Game saved]\n');
       return true;
     } catch {
@@ -466,7 +484,7 @@ export class WebIOAdapter implements IOAdapter {
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = '.qzl,.sav';
-      
+
       fileInput.onchange = async (): Promise<void> => {
         const file = fileInput.files?.[0];
         if (file) {
@@ -501,7 +519,7 @@ export class WebIOAdapter implements IOAdapter {
           }
         }
       };
-      
+
       // Trigger file selection
       fileInput.click();
     });
@@ -536,7 +554,7 @@ export class WebIOAdapter implements IOAdapter {
     const text = this.transcript.join('');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `zmachine-transcript-${Date.now()}.txt`;
@@ -544,7 +562,7 @@ export class WebIOAdapter implements IOAdapter {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     this.print('[Transcript downloaded]\n');
   }
 
@@ -601,7 +619,7 @@ export class WebIOAdapter implements IOAdapter {
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `zmachine-recording-${Date.now()}.json`;
@@ -609,7 +627,7 @@ export class WebIOAdapter implements IOAdapter {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     this.print('[Recording downloaded]\n');
   }
 
@@ -632,7 +650,7 @@ export class WebIOAdapter implements IOAdapter {
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = '.json';
-      
+
       fileInput.onchange = async (): Promise<void> => {
         const file = fileInput.files?.[0];
         if (file) {
@@ -654,7 +672,7 @@ export class WebIOAdapter implements IOAdapter {
           resolve(false);
         }
       };
-      
+
       fileInput.click();
     });
   }

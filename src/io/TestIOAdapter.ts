@@ -1,10 +1,10 @@
 /**
  * Test I/O Adapter
- * 
+ *
  * A simple in-memory I/O adapter for testing purposes.
  * Captures all output and can be configured with pre-set inputs.
  * Implements V5 screen model for proper game support.
- * 
+ *
  * @module
  */
 
@@ -17,42 +17,52 @@ import { ZVersion } from '../types/ZMachineTypes';
 export class TestIOAdapter implements IOAdapter {
   /** All captured output from lower window (window 0) */
   readonly output: string[] = [];
-  
+
   /** Captured output from upper window (window 1) */
   readonly upperOutput: string[] = [];
-  
+
   /** Current window (0 = lower/main, 1 = upper/status) */
   private currentWindow: number = 0;
-  
+
   /** Number of lines in upper window */
   private upperWindowLines: number = 0;
-  
+
   /** Cursor position for upper window */
   private upperCursor: { line: number; column: number } = { line: 1, column: 1 };
-  
+
   /** Pending line inputs */
   private lineInputs: string[] = [];
-  
+
   /** Pending character inputs */
   private charInputs: number[] = [];
-  
+
   /** Whether the game has quit */
   hasQuit: boolean = false;
-  
+
   /** Whether the game has restarted */
   hasRestarted: boolean = false;
-  
+
   /** Last status line shown */
   lastStatusLine?: { location: string; score: number; turns: number; isTime: boolean };
 
   /** Current text style */
   private textStyle: number = 0;
-  
+
   /** Buffer mode (true = buffered) */
   private bufferMode: boolean = true;
 
   /** Z-machine version for version-specific behavior */
-  private version: ZVersion = 3;
+  private currentVersion: ZVersion = 3;
+
+  /** Get current text style */
+  getTextStyle(): number {
+    return this.textStyle;
+  }
+
+  /** Get current version */
+  getVersion(): ZVersion {
+    return this.currentVersion;
+  }
 
   // Optional I/O adapter methods that can be set for testing
   save?: (data: Uint8Array) => Promise<boolean>;
@@ -63,17 +73,19 @@ export class TestIOAdapter implements IOAdapter {
   soundEffect?: (number: number, effect: number, volume: number) => void;
   setOutputStream?: (stream: number, enable: boolean, table?: number) => void;
   setInputStream?: (stream: number) => void;
-  getCursor?: () => { line: number; column: number } = (): { line: number; column: number } => ({ ...this.upperCursor });
+  getCursor?: () => { line: number; column: number } = (): { line: number; column: number } => ({
+    ...this.upperCursor,
+  });
 
   initialize(version: ZVersion): void {
-    this.version = version;
+    this.currentVersion = version;
     this.currentWindow = 0;
     this.upperWindowLines = 0;
   }
 
   print(text: string): void {
     const targetOutput = this.currentWindow === 0 ? this.output : this.upperOutput;
-    
+
     // Append to last output element if it exists and doesn't end with newline
     if (targetOutput.length > 0 && !targetOutput[targetOutput.length - 1].endsWith('\n')) {
       targetOutput[targetOutput.length - 1] += text;
@@ -114,11 +126,11 @@ export class TestIOAdapter implements IOAdapter {
   }
 
   // V5 Screen Model Methods
-  
+
   setWindow(window: number): void {
     this.currentWindow = window;
   }
-  
+
   splitWindow(lines: number): void {
     this.upperWindowLines = lines;
     // Clear upper window content when splitting
@@ -126,7 +138,7 @@ export class TestIOAdapter implements IOAdapter {
       this.upperOutput.length = 0;
     }
   }
-  
+
   eraseWindow(window: number): void {
     if (window === -1) {
       // Erase all and unsplit
@@ -144,19 +156,19 @@ export class TestIOAdapter implements IOAdapter {
       this.upperOutput.length = 0;
     }
   }
-  
+
   setCursor(line: number, column: number): void {
     this.upperCursor = { line, column };
   }
-  
+
   setTextStyle(style: number): void {
     this.textStyle = style;
   }
-  
+
   setBufferMode(mode: boolean): void {
     this.bufferMode = mode;
   }
-  
+
   getBufferMode(): boolean {
     return this.bufferMode;
   }
@@ -201,14 +213,14 @@ export class TestIOAdapter implements IOAdapter {
     const lower = this.output.join('');
     return upper + lower;
   }
-  
+
   /**
    * Get lower window output only
    */
   getLowerOutput(): string {
     return this.output.join('');
   }
-  
+
   /**
    * Get upper window output only
    */
@@ -240,14 +252,14 @@ export class TestIOAdapter implements IOAdapter {
     this.textStyle = 0;
     this.bufferMode = true;
   }
-  
+
   /**
    * Get current window number
    */
   getCurrentWindow(): number {
     return this.currentWindow;
   }
-  
+
   /**
    * Get number of upper window lines
    */

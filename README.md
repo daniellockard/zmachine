@@ -2,7 +2,7 @@
 
 A TypeScript implementation of the Z-machine virtual machine for running Infocom-style text adventure games.
 
-[![npm version](https://badge.fury.io/js/@dlockard%2Fzmachine.svg)](https://www.npmjs.com/package/@dlockard/zmachine)
+[![npm version](https://badge.fury.io/js/zmachine.svg)](https://www.npmjs.com/package/zmachine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
