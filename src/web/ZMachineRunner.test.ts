@@ -11,11 +11,16 @@ import { ZMachine, RunState } from '../core/ZMachine';
 
 // Mock ZMachine to avoid needing valid story data
 vi.mock('../core/ZMachine', () => {
+  const mockRun = vi.fn().mockResolvedValue(0);
+  const mockRestart = vi.fn();
+  
   return {
-    ZMachine: vi.fn().mockImplementation(() => ({
-      run: vi.fn().mockResolvedValue(0), // RunState.Halted = 0
-      restart: vi.fn(),
-    })),
+    ZMachine: class MockZMachine {
+      run = mockRun;
+      restart = mockRestart;
+      static mockRun = mockRun;
+      static mockRestart = mockRestart;
+    },
     RunState: {
       Halted: 0,
       Running: 1,
@@ -27,18 +32,25 @@ vi.mock('../core/ZMachine', () => {
 describe('ZMachineRunner', () => {
   let io: TestIOAdapter;
   let storyData: ArrayBuffer;
+  let mockRun: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     io = new TestIOAdapter();
     storyData = new ArrayBuffer(64);
     vi.clearAllMocks();
+    
+    // Access the static mocks from the mocked class
+    const MockZMachine = ZMachine as unknown as { mockRun: ReturnType<typeof vi.fn>; mockRestart: ReturnType<typeof vi.fn> };
+    mockRun = MockZMachine.mockRun;
+    mockRun.mockResolvedValue(0); // Reset to default (Halted)
   });
 
   describe('constructor', () => {
     it('should create runner with config', () => {
       const runner = new ZMachineRunner({ storyData, io });
       expect(runner).toBeDefined();
-      expect(ZMachine).toHaveBeenCalledWith(storyData, io);
+      // The mock ZMachine is instantiated
+      expect(runner.getMachine()).toBeDefined();
     });
 
     it('should start in stopped state', () => {
@@ -80,11 +92,7 @@ describe('ZMachineRunner', () => {
       const states: RunnerState[] = [];
       
       // Mock to return WaitingForInput
-      const MockZMachine = ZMachine as unknown as ReturnType<typeof vi.fn>;
-      MockZMachine.mockImplementationOnce(() => ({
-        run: vi.fn().mockResolvedValue(RunState.WaitingForInput),
-        restart: vi.fn(),
-      }));
+      mockRun.mockResolvedValueOnce(RunState.WaitingForInput);
       
       const runner = new ZMachineRunner({
         storyData,
@@ -101,11 +109,7 @@ describe('ZMachineRunner', () => {
       const states: RunnerState[] = [];
       
       // Mock to return an unknown state (e.g., 99)
-      const MockZMachine = ZMachine as unknown as ReturnType<typeof vi.fn>;
-      MockZMachine.mockImplementationOnce(() => ({
-        run: vi.fn().mockResolvedValue(99),
-        restart: vi.fn(),
-      }));
+      mockRun.mockResolvedValueOnce(99);
       
       const runner = new ZMachineRunner({
         storyData,
@@ -130,11 +134,7 @@ describe('ZMachineRunner', () => {
       const onError = vi.fn();
       
       // Mock to throw an error
-      const MockZMachine = ZMachine as unknown as ReturnType<typeof vi.fn>;
-      MockZMachine.mockImplementationOnce(() => ({
-        run: vi.fn().mockRejectedValue(new Error('Test error')),
-        restart: vi.fn(),
-      }));
+      mockRun.mockRejectedValueOnce(new Error('Test error'));
       
       const runner = new ZMachineRunner({
         storyData,
@@ -151,11 +151,7 @@ describe('ZMachineRunner', () => {
     it('should handle non-Error throws', async () => {
       const onError = vi.fn();
       
-      const MockZMachine = ZMachine as unknown as ReturnType<typeof vi.fn>;
-      MockZMachine.mockImplementationOnce(() => ({
-        run: vi.fn().mockRejectedValue('string error'),
-        restart: vi.fn(),
-      }));
+      mockRun.mockRejectedValueOnce('string error');
       
       const runner = new ZMachineRunner({
         storyData,

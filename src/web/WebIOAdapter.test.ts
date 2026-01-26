@@ -503,8 +503,14 @@ describe('WebIOAdapter', () => {
         currentTime: 0,
       };
       
+      // Use a class for vitest v4 compatibility
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (globalThis as any).AudioContext = vi.fn().mockImplementation(() => mockContext);
+      (globalThis as any).AudioContext = class MockAudioContext {
+        createOscillator = mockContext.createOscillator;
+        createGain = mockContext.createGain;
+        destination = mockContext.destination;
+        currentTime = mockContext.currentTime;
+      };
       
       // Create new adapter after mocking AudioContext
       const testAdapter = createAdapter();

@@ -18,7 +18,7 @@ A TypeScript implementation of the Z-machine virtual machine for running Infocom
 ## Installation
 
 ```bash
-npm install @dlockard/zmachine
+npm install zmachine
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ npm install @dlockard/zmachine
 ### Node.js
 
 ```typescript
-import { ZMachine, IOAdapter } from '@dlockard/zmachine';
+import { ZMachine, IOAdapter } from 'zmachine';
 import { readFileSync } from 'fs';
 
 // Implement your I/O adapter
@@ -47,8 +47,8 @@ await zm.run();
 ### Browser
 
 ```typescript
-import { ZMachine } from '@dlockard/zmachine';
-import { WebIOAdapter } from '@dlockard/zmachine/web';
+import { ZMachine } from 'zmachine';
+import { WebIOAdapter } from 'zmachine/web';
 
 // Set up DOM elements
 const output = document.getElementById('output');
@@ -214,7 +214,7 @@ zm.memory.writeByte(address, value);         // Write 8-bit byte
 ### Text Encoding/Decoding
 
 ```typescript
-import { ZCharDecoder, ZCharEncoder, ZSCII } from '@dlockard/zmachine';
+import { ZCharDecoder, ZCharEncoder, ZSCII } from 'zmachine';
 
 // Decode Z-characters to string
 const decoder = new ZCharDecoder(memory, version, abbreviationsAddr);
@@ -232,7 +232,7 @@ const zscii = ZSCII.fromUnicode(unicodeChar);
 ### GameState (Save/Restore)
 
 ```typescript
-import { GameState, Quetzal } from '@dlockard/zmachine';
+import { GameState, Quetzal } from 'zmachine';
 
 // Create save state
 const state = GameState.capture(zmachine);

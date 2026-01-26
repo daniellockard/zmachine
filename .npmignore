@@ -1,0 +1,33 @@
+# Source files (use dist/)
+src/
+
+# Test files
+**/*.test.js
+**/*.test.d.ts
+**/*.test.js.map
+**/*.test.d.ts.map
+dist/integration/
+
+# Source maps (saves ~700KB, users can use non-minified for debugging)
+**/*.map
+dist/**/*.map
+
+# Development files
+.github/
+.eslintrc.json
+tsconfig.json
+vite.config.ts
+vite.lib.config.ts
+vitest.config.ts
+vitest.web.config.ts
+vitest.all.config.ts
+coverage/
+roms/
+PLAN.md
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
