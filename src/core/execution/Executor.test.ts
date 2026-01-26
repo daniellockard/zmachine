@@ -3237,6 +3237,22 @@ describe('Executor', () => {
   describe('edge cases for coverage', () => {
     describe('getOpcodeStats with unknown opcodes', () => {
       it('should track unknown opcodes in getOpcodeStats', async () => {
+        // Create executor with debug enabled for this test
+        const debugExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          io,
+          textDecoder,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { debug: true }
+        );
+
         // Execute an 'unknown' instruction to populate unknownOpcodes
         const unknownIns: DecodedInstruction = {
           address: 0x1000,
@@ -3248,9 +3264,9 @@ describe('Executor', () => {
           operands: [],
         };
 
-        await executor.execute(unknownIns);
+        await debugExecutor.execute(unknownIns);
 
-        const stats = executor.getOpcodeStats();
+        const stats = debugExecutor.getOpcodeStats();
         expect(stats.total).toBeGreaterThan(0);
         expect(stats.unknowns.size).toBe(1);
         expect(stats.unknowns.get(0xbe)).toBeDefined();
@@ -3258,8 +3274,8 @@ describe('Executor', () => {
         expect(stats.unknowns.get(0xbe)!.address).toBe(0x1000);
 
         // Execute same unknown opcode again to test count increment
-        await executor.execute(unknownIns);
-        const stats2 = executor.getOpcodeStats();
+        await debugExecutor.execute(unknownIns);
+        const stats2 = debugExecutor.getOpcodeStats();
         expect(stats2.unknowns.get(0xbe)!.count).toBe(2);
       });
     });

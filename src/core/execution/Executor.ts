@@ -54,6 +54,18 @@ export interface ExecutionState {
 }
 
 /**
+ * Options for Executor configuration
+ */
+export interface ExecutorOptions {
+  /**
+   * Enable debug tracking of opcode statistics and execution trace.
+   * When disabled (default), avoids performance overhead of tracking.
+   * @default false
+   */
+  debug?: boolean;
+}
+
+/**
  * Executes Z-machine instructions
  */
 export class Executor {
@@ -68,6 +80,9 @@ export class Executor {
   readonly properties: Properties;
   readonly dictionary: Dictionary;
   readonly tokenizer: Tokenizer;
+
+  /** Whether debug tracking is enabled */
+  private readonly debugEnabled: boolean;
 
   private handlers: Map<string, OpcodeHandler> = new Map();
 
@@ -86,7 +101,8 @@ export class Executor {
     objectTable?: ObjectTable,
     properties?: Properties,
     dictionary?: Dictionary,
-    tokenizer?: Tokenizer
+    tokenizer?: Tokenizer,
+    options?: ExecutorOptions
   ) {
     this.memory = memory;
     this.header = header;
@@ -95,6 +111,7 @@ export class Executor {
     this.version = version;
     this.io = io;
     this.textDecoder = textDecoder;
+    this.debugEnabled = options?.debug ?? false;
 
     // Create object table if not provided
     this.objectTable = objectTable ?? new ObjectTable(memory, version, header.objectTableAddress);
@@ -112,6 +129,7 @@ export class Executor {
     pc: ByteAddress;
   } | null = null;
 
+  // Debug tracking state (only used when debugEnabled is true)
   /** DEBUG: Opcode frequency counter */
   private opcodeCount: Map<string, number> = new Map();
   private totalOps: number = 0;
@@ -119,11 +137,14 @@ export class Executor {
   /** DEBUG: Unknown opcode details */
   private unknownOpcodes: Map<number, { address: number; count: number }> = new Map();
 
-  /** DEBUG: Last 10 executed PCs */
+  /** DEBUG: Last 20 executed PCs */
   private recentPCs: ByteAddress[] = [];
   private lastExecutedPC: ByteAddress = 0;
 
-  /** DEBUG: Get opcode statistics and execution trace */
+  /**
+   * Get opcode statistics and execution trace.
+   * Only meaningful when debug mode is enabled.
+   */
   getOpcodeStats(): {
     total: number;
     counts: Map<string, number>;
@@ -144,25 +165,28 @@ export class Executor {
    * Execute a decoded instruction
    */
   async execute(instruction: DecodedInstruction): Promise<ExecutionResult> {
-    // Track recent PCs for debugging
-    this.recentPCs.push(instruction.address);
-    if (this.recentPCs.length > 20) {
-      this.recentPCs.shift();
-    }
-    this.lastExecutedPC = instruction.address;
+    // Track debug info only when enabled (avoids performance overhead)
+    if (this.debugEnabled) {
+      // Track recent PCs for debugging
+      this.recentPCs.push(instruction.address);
+      if (this.recentPCs.length > 20) {
+        this.recentPCs.shift();
+      }
+      this.lastExecutedPC = instruction.address;
 
-    // DEBUG: Track opcode frequency
-    this.totalOps++;
-    const count = this.opcodeCount.get(instruction.opcodeName) || 0;
-    this.opcodeCount.set(instruction.opcodeName, count + 1);
+      // Track opcode frequency
+      this.totalOps++;
+      const count = this.opcodeCount.get(instruction.opcodeName) || 0;
+      this.opcodeCount.set(instruction.opcodeName, count + 1);
 
-    // DEBUG: Track unknown opcodes
-    if (instruction.opcodeName === 'unknown') {
-      const existing = this.unknownOpcodes.get(instruction.opcode);
-      if (!existing) {
-        this.unknownOpcodes.set(instruction.opcode, { address: instruction.address, count: 1 });
-      } else {
-        existing.count++;
+      // Track unknown opcodes
+      if (instruction.opcodeName === 'unknown') {
+        const existing = this.unknownOpcodes.get(instruction.opcode);
+        if (!existing) {
+          this.unknownOpcodes.set(instruction.opcode, { address: instruction.address, count: 1 });
+        } else {
+          existing.count++;
+        }
       }
     }
 

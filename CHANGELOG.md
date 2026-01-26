@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-26
+
+### Added
+- Custom error class hierarchy (`ZMachineError`, `MemoryError`, `OpcodeError`, `DecodeError`, `StackError`, `ObjectError`, `SaveError`, `IOError`)
+- Error formatting helpers (`formatAddress`, `formatByte`, `formatWord`)
+- Split `IOAdapter` into focused sub-interfaces for better modularity:
+  - `IOAdapterCore` - Required methods all adapters must implement
+  - `IOAdapterWindowed` - Window management (V3+)
+  - `IOAdapterStyled` - Text styling (V4+)
+  - `IOAdapterColor` - Color support (V5+)
+  - `IOAdapterSound` - Sound effects (V3+)
+  - `IOAdapterSave` - Save/restore functionality
+  - `IOAdapterCursor` - Advanced cursor control (V4+/V6+)
+  - `IOAdapterStreams` - I/O stream management
+  - `IOAdapterStatus` - Status line display (V3)
+  - `IOAdapterVerify` - Game verification
+- `CursorPosition` type for cursor coordinates
+- `ExecutorOptions` interface with `debug` flag for optional performance tracking
+- Comprehensive JSDoc documentation for all public exports in main index.ts
+
+### Changed
+- Debug tracking in Executor is now opt-in via `{ debug: true }` option (improves performance)
+- Replaced magic header offset numbers with `HeaderAddress` constants in `Memory.ts` and `ZMachine.ts`
+- Improved JSDoc documentation throughout I/O interfaces
+- Expanded main module documentation with Quick Start examples
+
+### Fixed
+- Memory module now imports and uses `HeaderAddress.STATIC_MEMORY_BASE` instead of raw `0x0E`
+
 ## [0.2.0] - 2026-01-26
 
 ### Added

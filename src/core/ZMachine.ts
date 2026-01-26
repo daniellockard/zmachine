@@ -1,24 +1,24 @@
 /**
  * Z-Machine
- * 
+ *
  * The main class that ties together all Z-machine components.
  * This is the primary interface for running Z-machine games.
- * 
+ *
  * Usage:
  * ```typescript
  * const io = new WebIOAdapter(/* ... *\/);
  * const zm = await ZMachine.load(storyData, io);
  * await zm.run();
  * ```
- * 
+ *
  * Reference: Z-Machine Specification
- * 
+ *
  * @module
  */
 
 import { ByteAddress, ZVersion } from '../types/ZMachineTypes';
 import { Memory } from './memory/Memory';
-import { Header } from './memory/Header';
+import { Header, HeaderAddress } from './memory/Header';
 import { Stack } from './cpu/Stack';
 import { Variables } from './variables/Variables';
 import { Decoder } from './instructions/Decoder';
@@ -71,7 +71,7 @@ export class ZMachine {
 
   /**
    * Create a new Z-Machine instance
-   * 
+   *
    * @param storyData The story file data
    * @param io The I/O adapter for input/output
    */
@@ -88,11 +88,7 @@ export class ZMachine {
     this.stack = new Stack();
     this.stack.initialize(0); // No locals at top level
 
-    this.variables = new Variables(
-      this.memory,
-      this.stack,
-      this.header.globalsAddress
-    );
+    this.variables = new Variables(this.memory, this.stack, this.header.globalsAddress);
 
     this.textDecoder = new ZCharDecoder(
       this.memory,
@@ -113,70 +109,54 @@ export class ZMachine {
       this.textDecoder
     );
 
-    this.objectTable = new ObjectTable(
-      this.memory,
-      this.version,
-      this.header.objectTableAddress
-    );
+    this.objectTable = new ObjectTable(this.memory, this.version, this.header.objectTableAddress);
 
-    this.properties = new Properties(
-      this.memory,
-      this.version,
-      this.objectTable
-    );
+    this.properties = new Properties(this.memory, this.version, this.objectTable);
 
-    this.dictionary = new Dictionary(
-      this.memory,
-      this.version,
-      this.header.dictionaryAddress
-    );
+    this.dictionary = new Dictionary(this.memory, this.version, this.header.dictionaryAddress);
 
-    this.tokenizer = new Tokenizer(
-      this.memory,
-      this.version,
-      this.dictionary
-    );
+    this.tokenizer = new Tokenizer(this.memory, this.version, this.dictionary);
 
     // Initialize PC
     this._pc = this.header.initialPC;
-    
+
     // Initialize interpreter info in header for V4+
     if (this.version >= 4) {
       // Interpreter number: 6 = IBM PC
       // Interpreter version: ASCII character for version
       this.header.setInterpreterInfo(6, 'Z'.charCodeAt(0));
-      
+
       // Set default screen dimensions (80x25 terminal)
       this.header.setScreenDimensions(80, 25);
-      
+
       // Set FLAGS1 interpreter capabilities for V4+
       // Bit 2: Boldface available
       // Bit 3: Italic available
       // Bit 4: Fixed-space style available
       // Bit 7: Timed keyboard input available
-      this.memory.writeByte(0x01, 0b10011100); // bits 2,3,4,7
-      
+      this.memory.writeByte(HeaderAddress.FLAGS1, 0b10011100); // bits 2,3,4,7
+
       // For V5+, also set font dimensions and colors
       if (this.version >= 5) {
         // Font width (1 unit per char) and height (1 unit per line)
-        this.memory.writeByte(0x26, 1); // font width
-        this.memory.writeByte(0x27, 1); // font height
-        
+        this.memory.writeByte(HeaderAddress.FONT_WIDTH, 1);
+        this.memory.writeByte(HeaderAddress.FONT_HEIGHT, 1);
+
         // Default colors: white on black
         // Color 2 = black, Color 9 = white (standard Z-machine colors)
-        this.memory.writeByte(0x2C, 2);  // default background (black)
-        this.memory.writeByte(0x2D, 9);  // default foreground (white)
-        
+        this.memory.writeByte(HeaderAddress.DEFAULT_BACKGROUND, 2);
+        this.memory.writeByte(HeaderAddress.DEFAULT_FOREGROUND, 9);
+
         // Standard revision 1.1
-        this.memory.writeByte(0x32, 1);  // major
-        this.memory.writeByte(0x33, 1);  // minor
+        this.memory.writeByte(HeaderAddress.STANDARD_REVISION, 1); // major
+        this.memory.writeByte(HeaderAddress.STANDARD_REVISION + 1, 1); // minor
       }
     }
   }
 
   /**
    * Load a Z-machine story file
-   * 
+   *
    * @param storyData The story file data (ArrayBuffer or Uint8Array)
    * @param io The I/O adapter
    * @returns A new ZMachine instance
@@ -210,7 +190,7 @@ export class ZMachine {
 
   /**
    * Run the Z-machine until it halts or needs input
-   * 
+   *
    * @returns The run state when execution pauses
    */
   async run(): Promise<RunState> {
@@ -261,11 +241,11 @@ export class ZMachine {
 
   /**
    * Provide input when waiting for it
-   * 
+   *
    * Note: This is an alternative push-based API for input.
    * The primary path is through IOAdapter.readLine() which is
    * called by the read opcodes and awaited asynchronously.
-   * 
+   *
    * @param _input The input text (currently unused - reserved for future use)
    */
   async provideInput(_input: string): Promise<void> {
@@ -276,7 +256,7 @@ export class ZMachine {
     // The actual input handling happens through IOAdapter.readLine()
     // which the read opcode awaits. This method is reserved for
     // potential push-based input scenarios.
-    
+
     this._state = RunState.Running;
   }
 

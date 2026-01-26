@@ -1,22 +1,23 @@
 /**
  * Memory module for Z-machine
- * 
+ *
  * Provides read/write access to the Z-machine's memory using an ArrayBuffer.
  * All multi-byte values are big-endian as per the Z-machine specification.
- * 
+ *
  * Memory layout (§1.1):
  * - Dynamic memory: 0x00 to static memory mark (read/write)
  * - Static memory: After dynamic, up to 0xFFFF (read-only during play)
  * - High memory: Above static, contains routines and strings
- * 
+ *
  * @module
  */
 
 import { ByteAddress, Word, Byte } from '../../types/ZMachineTypes';
+import { HeaderAddress } from './Header';
 
 /**
  * Z-machine memory implementation
- * 
+ *
  * Uses ArrayBuffer for storage and DataView for big-endian access.
  * No external dependencies - uses only built-in browser/Node APIs.
  */
@@ -32,20 +33,19 @@ export class Memory {
 
   /**
    * Create a new Memory instance from a story file
-   * 
+   *
    * @param storyData - The raw story file data as an ArrayBuffer
    */
   constructor(storyData: ArrayBuffer) {
     // Make a copy so we can modify it
     this.buffer = storyData.slice(0);
     this.view = new DataView(this.buffer);
-    
+
     // Keep original for restart
     this.originalBuffer = storyData.slice(0);
-    
-    // Read static memory base from header (offset 0x0E)
-    // We'll set this properly once header is parsed
-    this.staticMemoryBase = this.view.getUint16(0x0E, false);
+
+    // Read static memory base from header
+    this.staticMemoryBase = this.view.getUint16(HeaderAddress.STATIC_MEMORY_BASE, false);
   }
 
   /**
@@ -64,7 +64,7 @@ export class Memory {
 
   /**
    * Read a single byte from memory
-   * 
+   *
    * @param address - Byte address to read from
    * @returns The byte value (0-255)
    * @throws Error if address is out of bounds
@@ -76,7 +76,7 @@ export class Memory {
 
   /**
    * Read a 16-bit word from memory (big-endian)
-   * 
+   *
    * @param address - Byte address to read from
    * @returns The word value (0-65535)
    * @throws Error if address is out of bounds
@@ -89,19 +89,19 @@ export class Memory {
 
   /**
    * Write a single byte to memory
-   * 
+   *
    * @param address - Byte address to write to
    * @param value - Byte value to write (0-255)
    * @throws Error if address is out of bounds or in static/high memory
    */
   writeByte(address: ByteAddress, value: Byte): void {
     this.validateWriteAddress(address);
-    this.view.setUint8(address, value & 0xFF);
+    this.view.setUint8(address, value & 0xff);
   }
 
   /**
    * Write a 16-bit word to memory (big-endian)
-   * 
+   *
    * @param address - Byte address to write to
    * @param value - Word value to write (0-65535)
    * @throws Error if address is out of bounds or in static/high memory
@@ -109,12 +109,12 @@ export class Memory {
   writeWord(address: ByteAddress, value: Word): void {
     this.validateWriteAddress(address);
     this.validateWriteAddress(address + 1);
-    this.view.setUint16(address, value & 0xFFFF, false); // false = big-endian
+    this.view.setUint16(address, value & 0xffff, false); // false = big-endian
   }
 
   /**
    * Read a sequence of bytes from memory
-   * 
+   *
    * @param address - Starting byte address
    * @param length - Number of bytes to read
    * @returns Uint8Array containing the bytes
@@ -147,7 +147,7 @@ export class Memory {
   restart(): void {
     const original = new Uint8Array(this.originalBuffer);
     const current = new Uint8Array(this.buffer);
-    
+
     // Only copy dynamic memory (0 to staticMemoryBase)
     for (let i = 0; i < this.staticMemoryBase; i++) {
       current[i] = original[i];
@@ -178,7 +178,7 @@ export class Memory {
     if (address >= this.staticMemoryBase) {
       throw new Error(
         `Cannot write to static/high memory at 0x${address.toString(16)} ` +
-        `(static memory starts at 0x${this.staticMemoryBase.toString(16)})`
+          `(static memory starts at 0x${this.staticMemoryBase.toString(16)})`
       );
     }
   }
