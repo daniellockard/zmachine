@@ -130,6 +130,47 @@ describe('ZCharEncoder', () => {
         expect(zchars[3]).toBe(30);  // Low bits (94 & 0x1F = 30)
       });
 
+      it('should break mid-escape when multi-code character spans the word limit', () => {
+        // For V3, max is 6 Z-chars (2 words).
+        // "abcde" = 5 Z-chars (all A0), then '@' needs 4 codes (shift-5, 6, high, low)
+        // After 'abcde', only 1 slot remains. The escape starts but the inner loop
+        // must break after adding just the first code (shift-5) since we hit the limit.
+        const zchars = encodeToZChars('abcde@', 3);
+
+        // Should be exactly 6 Z-chars: a, b, c, d, e, then only the first code of '@' escape
+        expect(zchars.length).toBe(6);
+        expect(zchars[0]).toBe(6);   // 'a'
+        expect(zchars[1]).toBe(7);   // 'b'
+        expect(zchars[2]).toBe(8);   // 'c'
+        expect(zchars[3]).toBe(9);   // 'd'
+        expect(zchars[4]).toBe(10);  // 'e'
+        expect(zchars[5]).toBe(5);   // A2 shift (start of '@' escape, truncated)
+      });
+
+      it('should handle partial ZSCII escape at various remaining slots', () => {
+        // Test with 4 chars first: leaves 2 slots, escape needs 4 codes
+        // Should get: a, b, c, d, shift-5, escape-code (6)
+        const zchars4 = encodeToZChars('abcd@', 3);
+        expect(zchars4.length).toBe(6);
+        expect(zchars4[0]).toBe(6);   // 'a'
+        expect(zchars4[1]).toBe(7);   // 'b'
+        expect(zchars4[2]).toBe(8);   // 'c'
+        expect(zchars4[3]).toBe(9);   // 'd'
+        expect(zchars4[4]).toBe(5);   // A2 shift
+        expect(zchars4[5]).toBe(6);   // Escape code (partial, missing high/low)
+
+        // Test with 3 chars: leaves 3 slots, escape needs 4 codes
+        // Should get: a, b, c, shift-5, 6, high-bits (still missing low)
+        const zchars3 = encodeToZChars('abc@', 3);
+        expect(zchars3.length).toBe(6);
+        expect(zchars3[0]).toBe(6);   // 'a'
+        expect(zchars3[1]).toBe(7);   // 'b'
+        expect(zchars3[2]).toBe(8);   // 'c'
+        expect(zchars3[3]).toBe(5);   // A2 shift
+        expect(zchars3[4]).toBe(6);   // Escape code
+        expect(zchars3[5]).toBe(2);   // '@' high bits (64 >> 5 = 2), low bits truncated
+      });
+
       it('should handle mixed alphabets and escapes', () => {
         // "a@b" = 'a' (A0), '@' (escape), 'b' (A0)
         // But '@' takes 4 Z-chars, so we get 'a'(1) + '@'(4) + 'b'(1) = 6 Z-chars

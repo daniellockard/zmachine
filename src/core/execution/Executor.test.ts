@@ -1925,6 +1925,87 @@ describe('Executor', () => {
         const wordCount = v5Memory.readByte(0x701);
         expect(wordCount).toBeGreaterThanOrEqual(0); // At least executed without error
       });
+
+      it('should tokenize with custom dictionary (3 operands)', async () => {
+        // Set up a custom dictionary at 0x800 with '!' as separator
+        const customDictAddr = 0x800;
+        v5Memory.writeByte(customDictAddr, 1);      // 1 separator
+        v5Memory.writeByte(customDictAddr + 1, '!'.charCodeAt(0)); // '!' separator
+        v5Memory.writeByte(customDictAddr + 2, 9);  // entry length
+        v5Memory.writeWord(customDictAddr + 3, 0);  // 0 entries
+
+        // Set up text buffer at 0x600 with "hi!bye" text
+        v5Memory.writeByte(0x600, 80);   // max length
+        v5Memory.writeByte(0x601, 6);    // 6 chars typed
+        const text = 'hi!bye';
+        for (let i = 0; i < text.length; i++) {
+          v5Memory.writeByte(0x602 + i, text.charCodeAt(i));
+        }
+
+        // Set up parse buffer at 0x700
+        v5Memory.writeByte(0x700, 10);   // max parse entries
+
+        const ins = makeInstruction('tokenise', [
+          makeOperand(OperandType.LargeConstant, 0x600), // text buffer
+          makeOperand(OperandType.LargeConstant, 0x700), // parse buffer
+          makeOperand(OperandType.LargeConstant, customDictAddr), // custom dictionary
+        ], 7);
+
+        await v5Executor.execute(ins);
+
+        // Should have 3 tokens: hi, !, bye (using custom dictionary with '!' separator)
+        const wordCount = v5Memory.readByte(0x701);
+        expect(wordCount).toBe(3);
+      });
+
+      it('should tokenize with skipUnknown flag (4 operands)', async () => {
+        // Set up a custom dictionary at 0x800 with ',' as separator and no entries
+        const customDictAddr = 0x800;
+        v5Memory.writeByte(customDictAddr, 1);      // 1 separator
+        v5Memory.writeByte(customDictAddr + 1, ','.charCodeAt(0)); // ',' separator
+        v5Memory.writeByte(customDictAddr + 2, 9);  // entry length
+        v5Memory.writeWord(customDictAddr + 3, 0);  // 0 entries (so all words are "unknown")
+
+        // Set up text buffer at 0x600 with "hello,world" text
+        v5Memory.writeByte(0x600, 80);   // max length
+        v5Memory.writeByte(0x601, 11);   // 11 chars typed
+        const text = 'hello,world';
+        for (let i = 0; i < text.length; i++) {
+          v5Memory.writeByte(0x602 + i, text.charCodeAt(i));
+        }
+
+        // Set up parse buffer at 0x700
+        v5Memory.writeByte(0x700, 10);   // max parse entries
+
+        // With skipUnknown = false (0), should store all tokens even if not in dictionary
+        const insNoSkip = makeInstruction('tokenise', [
+          makeOperand(OperandType.LargeConstant, 0x600), // text buffer
+          makeOperand(OperandType.LargeConstant, 0x700), // parse buffer
+          makeOperand(OperandType.LargeConstant, customDictAddr), // custom dictionary
+          makeOperand(OperandType.SmallConstant, 0),     // skipUnknown = false
+        ], 8);
+
+        await v5Executor.execute(insNoSkip);
+
+        // Should have 3 tokens: hello, ',', world (all stored even though not in dictionary)
+        expect(v5Memory.readByte(0x701)).toBe(3);
+
+        // Reset parse buffer
+        v5Memory.writeByte(0x701, 0);
+
+        // With skipUnknown = true (non-zero), should skip tokens not in dictionary
+        const insSkip = makeInstruction('tokenise', [
+          makeOperand(OperandType.LargeConstant, 0x600), // text buffer
+          makeOperand(OperandType.LargeConstant, 0x700), // parse buffer
+          makeOperand(OperandType.LargeConstant, customDictAddr), // custom dictionary
+          makeOperand(OperandType.SmallConstant, 1),     // skipUnknown = true
+        ], 8);
+
+        await v5Executor.execute(insSkip);
+
+        // Should have 0 tokens because all words are unknown (not in dictionary)
+        expect(v5Memory.readByte(0x701)).toBe(0);
+      });
     });
 
     describe('input_stream', () => {

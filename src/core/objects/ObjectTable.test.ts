@@ -450,6 +450,52 @@ describe('Properties', () => {
         'Property 25 not found on object 1'
       );
     });
+
+    it('should return 0 for first property of object with no properties', () => {
+      // Create a new memory with an object that has no properties
+      const testMem = ((): Memory => {
+        const size = 0x10000;
+        const buffer = new ArrayBuffer(size);
+        const view = new DataView(buffer);
+
+        // Header
+        view.setUint8(0x00, 3); // Version 3
+        view.setUint16(0x0A, 0x100, false); // Object table at 0x100
+        view.setUint16(0x0E, 0x8000, false); // Static memory base
+
+        return new Memory(buffer);
+      })();
+
+      const tableAddr = 0x100;
+
+      // Property defaults (31 words)
+      for (let i = 0; i < 31; i++) {
+        testMem.writeWord(tableAddr + i * 2, (i + 1) * 100);
+      }
+
+      // Object 1 entry at tableAddr + 62
+      const objStart = tableAddr + 62;
+      testMem.writeByte(objStart, 0x00); // Attrs
+      testMem.writeByte(objStart + 1, 0x00);
+      testMem.writeByte(objStart + 2, 0x00);
+      testMem.writeByte(objStart + 3, 0x00);
+      testMem.writeByte(objStart + 4, 0); // Parent
+      testMem.writeByte(objStart + 5, 0); // Sibling
+      testMem.writeByte(objStart + 6, 0); // Child
+      testMem.writeWord(objStart + 7, 0x200); // Property table
+
+      // Property table at 0x200 with NO properties
+      const propTable = 0x200;
+      testMem.writeByte(propTable, 0); // Short name length = 0 (no name)
+      testMem.writeByte(propTable + 1, 0x00); // End of properties immediately
+
+      const objTable = new ObjectTable(testMem, 3, 0x100);
+      const props = new Properties(testMem, 3, objTable);
+
+      // getNextProperty(objNum, 0) should return 0 when object has no properties
+      const first = props.getNextProperty(1, 0);
+      expect(first).toBe(0);
+    });
   });
 
   describe('property address and length', () => {

@@ -214,6 +214,44 @@ describe('Quetzal', () => {
       const differentMemory = new Memory(differentStory);
       expect(verifySaveCompatibility(parsed, differentMemory)).toBe(false);
     });
+
+    it('should use CMem compression when originalMemory is provided', () => {
+      const storyData = createTestStoryData();
+      const memory = new Memory(storyData);
+      const stack = new Stack();
+      stack.initialize(0);
+      
+      // Get the static base to know how much dynamic memory there is
+      const staticBase = memory.staticBase;
+      
+      // Capture original dynamic memory before modifications
+      const originalMemory = new Uint8Array(staticBase);
+      for (let i = 0; i < staticBase; i++) {
+        originalMemory[i] = memory.readByte(i);
+      }
+      
+      // Modify dynamic memory
+      memory.writeByte(0x40, 0xAB);
+      memory.writeByte(0x41, 0xCD);
+      
+      // Create save with originalMemory to trigger CMem compression
+      const saveData = createQuetzalSave(memory, stack.snapshot(), 0x5000, originalMemory);
+      
+      // Verify the save uses CMem instead of UMem
+      // Search for 'CMem' chunk type in the IFF structure
+      const saveString = String.fromCharCode(...saveData);
+      expect(saveString).toContain('CMem');
+      expect(saveString).not.toContain('UMem');
+      
+      // Verify the parsed result indicates compression
+      const parsed = parseQuetzalSave(saveData);
+      expect(parsed.isCompressed).toBe(true);
+      
+      // Decompress and verify the data is correct
+      const decompressed = decompressMemory(parsed.dynamicMemory, originalMemory);
+      expect(decompressed[0x40]).toBe(0xAB);
+      expect(decompressed[0x41]).toBe(0xCD);
+    });
   });
 
   describe('error handling', () => {
@@ -316,6 +354,34 @@ describe('Quetzal', () => {
       const saveData = createIFZSFile(chunks);
       
       expect(() => parseQuetzalSave(saveData)).toThrow('Missing Stks chunk');
+    });
+
+    it('should reject save with truncated IFhd chunk', () => {
+      // Create a Quetzal file with an IFhd chunk that has less than 13 bytes
+      const chunks: Uint8Array[] = [];
+      
+      // Truncated IFhd chunk (only 10 bytes instead of required 13)
+      const ifhd = new Uint8Array(10);
+      ifhd[0] = 0; ifhd[1] = 1; // release = 1
+      // Serial bytes 2-7 = '123456'
+      ifhd[2] = 0x31; ifhd[3] = 0x32; ifhd[4] = 0x33;
+      ifhd[5] = 0x34; ifhd[6] = 0x35; ifhd[7] = 0x36;
+      // Checksum bytes 8-9 (but missing PC bytes 10-12)
+      ifhd[8] = 0xAB; ifhd[9] = 0xCD;
+      
+      chunks.push(createChunk('IFhd', ifhd));
+      
+      // CMem chunk (compressed memory - just some zeros)
+      const cmem = new Uint8Array([0x00, 0x04]); // 5 zero bytes compressed
+      chunks.push(createChunk('CMem', cmem));
+      
+      // Stks chunk (minimal empty stack frame)
+      const stks = new Uint8Array(8);
+      chunks.push(createChunk('Stks', stks));
+      
+      const saveData = createIFZSFile(chunks);
+      
+      expect(() => parseQuetzalSave(saveData)).toThrow('IFhd chunk too short');
     });
   });
 });
