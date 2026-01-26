@@ -62,6 +62,36 @@ describe('ZCharEncoder', () => {
         expect(result.length).toBe(4); // Still 4 bytes (6 Z-chars)
       });
 
+      it('should truncate multi-code character mid-encoding via encodeText', () => {
+        // For V3, max is 6 Z-chars.
+        // 'abcde' = 5 single-code A0 characters
+        // '.' is A2, which needs 2 codes: shift-5 (code 5) + the char code
+        // After 'abcde', we have 5 Z-chars. The inner loop adds shift-5 (length = 6),
+        // then checks if 6 >= 6 (true) and breaks before adding the char code.
+        // This exercises line 103 in encodeText.
+        const result = encodeText('abcde.', 3);
+        
+        expect(result.length).toBe(4); // 2 words = 4 bytes for V3
+        
+        // Unpack to verify the Z-chars
+        const word0 = (result[0] << 8) | result[1];
+        const word1 = (result[2] << 8) | result[3];
+        
+        const c0 = (word0 >> 10) & 0x1F;  // 'a' = 6
+        const c1 = (word0 >> 5) & 0x1F;   // 'b' = 7
+        const c2 = word0 & 0x1F;          // 'c' = 8
+        const c3 = (word1 >> 10) & 0x1F;  // 'd' = 9
+        const c4 = (word1 >> 5) & 0x1F;   // 'e' = 10
+        const c5 = word1 & 0x1F;          // A2 shift = 5 (truncated '.')
+        
+        expect(c0).toBe(6);   // 'a'
+        expect(c1).toBe(7);   // 'b'
+        expect(c2).toBe(8);   // 'c'
+        expect(c3).toBe(9);   // 'd'
+        expect(c4).toBe(10);  // 'e'
+        expect(c5).toBe(5);   // A2 shift (start of '.', truncated)
+      });
+
       it('should encode numbers from alphabet 2', () => {
         // '0' is in A2 at position 2, requires shift-5 (code 5) + code 8
         const zchars = encodeToZChars('0', 3);

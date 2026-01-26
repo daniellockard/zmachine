@@ -84,6 +84,20 @@ describe('Quetzal', () => {
       
       expect(decompressed).toEqual(current);
     });
+
+    it('should fill rest from original when compressed data ends early', () => {
+      // Original memory is 10 bytes
+      const original = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      // Compressed data only covers first 3 bytes (single XOR byte covering first 3)
+      // XOR byte 0xFF means first byte becomes 1 ^ 0xFF = 0xFE
+      // Then compressed data ends, so bytes 2-10 should come from original
+      const compressed = new Uint8Array([0xFE]); // Only one byte of XOR data
+      
+      const decompressed = decompressMemory(compressed, original);
+      
+      // First byte: 0xFE ^ 1 = 0xFF, rest should be from original
+      expect(decompressed).toEqual(new Uint8Array([0xFF, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
+    });
   });
 
   describe('CallStackSnapshot', () => {
