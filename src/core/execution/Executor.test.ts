@@ -2459,6 +2459,26 @@ describe('Executor', () => {
       });
     });
 
+    describe('sread (V5+ read with terminator fallback)', () => {
+      it('should default to 13 when terminator is 0', async () => {
+        // Set up text buffer at 0x500: byte 0 = max length, text starts at byte 1 in V4 or byte 2 in V5+
+        v5Memory.writeByte(0x500, 50); // Max length
+        
+        // Mock readLine to return terminator: 0 (triggers || 13 fallback)
+        v5Io.readLine = async (): Promise<{ text: string; terminator: number }> => ({ text: 'test', terminator: 0 });
+        
+        const ins = makeInstruction('sread', [
+          makeOperand(OperandType.LargeConstant, 0x500), // text buffer
+          makeOperand(OperandType.SmallConstant, 0),     // no parse buffer
+        ], 5, { storeVariable: 16 });
+
+        await v5Executor.execute(ins);
+
+        // Check return value should be 13 (default) since terminator was 0
+        expect(v5Variables.read(16)).toBe(13);
+      });
+    });
+
     describe('restart', () => {
       it('should reset and return to initial PC', async () => {
         const ins = makeInstruction('restart', [], 1);

@@ -82,6 +82,40 @@ describe('Alphabet', () => {
         expect(getAlphabetChar(6, 99 as 0 | 1 | 2, 3)).toBeNull();
       });
     });
+
+    describe('out-of-range index (zchar >= 32)', () => {
+      it('should return null for out-of-range index in A0', () => {
+        // zchar 32 gives index 26, which is out of range for 26-char alphabet
+        expect(getAlphabetChar(32, 0, 3)).toBeNull();
+        expect(getAlphabetChar(40, 0, 3)).toBeNull();
+      });
+
+      it('should return null for out-of-range index in A1', () => {
+        expect(getAlphabetChar(32, 1, 3)).toBeNull();
+        expect(getAlphabetChar(40, 1, 3)).toBeNull();
+      });
+
+      it('should return null for out-of-range index in A2', () => {
+        expect(getAlphabetChar(32, 2, 3)).toBeNull();
+        expect(getAlphabetChar(40, 2, 3)).toBeNull();
+      });
+
+      it('should return null for out-of-range index in A2 V1', () => {
+        expect(getAlphabetChar(32, 2, 1)).toBeNull();
+        expect(getAlphabetChar(40, 2, 1)).toBeNull();
+      });
+
+      it('should return null for out-of-range index with custom alphabets', () => {
+        const custom: [string, string, string] = [
+          'zyxwvutsrqponmlkjihgfedcba',
+          'ZYXWVUTSRQPONMLKJIHGFEDCBA',
+          ' \n9876543210.,!?_#\'"/\\-:()',
+        ];
+        expect(getAlphabetChar(32, 0, 3, custom)).toBeNull();
+        expect(getAlphabetChar(32, 1, 3, custom)).toBeNull();
+        expect(getAlphabetChar(32, 2, 3, custom)).toBeNull();
+      });
+    });
   });
 
   describe('getShiftedAlphabet', () => {

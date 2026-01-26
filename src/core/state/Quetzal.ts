@@ -184,9 +184,9 @@ function createIFhdChunk(gameId: GameIdentification): Uint8Array {
   const data = new Uint8Array(13);
   writeUint16BE(data, 0, gameId.release);
   
-  // Serial number (6 ASCII chars)
+  // Serial number (6 ASCII chars) - always exactly 6 bytes from story file
   for (let i = 0; i < 6; i++) {
-    data[2 + i] = i < gameId.serial.length ? gameId.serial.charCodeAt(i) : 0x20;
+    data[2 + i] = gameId.serial.charCodeAt(i);
   }
   
   writeUint16BE(data, 8, gameId.checksum);
