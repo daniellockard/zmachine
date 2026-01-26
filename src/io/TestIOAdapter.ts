@@ -54,6 +54,17 @@ export class TestIOAdapter implements IOAdapter {
   /** Z-machine version for version-specific behavior */
   private version: ZVersion = 3;
 
+  // Optional I/O adapter methods that can be set for testing
+  save?: (data: Uint8Array) => Promise<boolean>;
+  restore?: () => Promise<Uint8Array | null>;
+  eraseLine?: () => void;
+  setForegroundColor?: (color: number) => void;
+  setBackgroundColor?: (color: number) => void;
+  soundEffect?: (number: number, effect: number, volume: number) => void;
+  setOutputStream?: (stream: number, enable: boolean, table?: number) => void;
+  setInputStream?: (stream: number) => void;
+  getCursor?: () => { line: number; column: number } = (): { line: number; column: number } => ({ ...this.upperCursor });
+
   initialize(version: ZVersion): void {
     this.version = version;
     this.currentWindow = 0;
@@ -136,10 +147,6 @@ export class TestIOAdapter implements IOAdapter {
   
   setCursor(line: number, column: number): void {
     this.upperCursor = { line, column };
-  }
-  
-  getCursor(): { line: number; column: number } {
-    return { ...this.upperCursor };
   }
   
   setTextStyle(style: number): void {

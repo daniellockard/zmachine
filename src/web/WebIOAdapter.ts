@@ -435,7 +435,7 @@ export class WebIOAdapter implements IOAdapter {
   async save(data: Uint8Array): Promise<boolean> {
     try {
       // Create a Blob from the save data (use slice to ensure plain ArrayBuffer)
-      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
       const blob = new Blob([buffer], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       

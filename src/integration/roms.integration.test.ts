@@ -129,8 +129,10 @@ describe('ROM Integration Tests', () => {
 
   // Report discovered ROMs
   it(`discovered ${allRoms.length} ROM files`, () => {
+    // eslint-disable-next-line no-console
     console.log(`\nFound ${allRoms.length} ROMs in ${ROMS_DIR}:`);
     for (const [version, roms] of romsByVersion) {
+      // eslint-disable-next-line no-console
       console.log(`  V${version}: ${roms.length} games`);
     }
     expect(allRoms.length).toBeGreaterThan(0);
@@ -177,6 +179,7 @@ describe('ROM Integration Tests', () => {
 
               // Report any error but still check we got some execution
               if (error) {
+                // eslint-disable-next-line no-console
                 console.warn(`  ${rom.name}: Error after ${steps} steps: ${error}`);
               }
 
@@ -202,8 +205,10 @@ describe('ROM Test Summary', () => {
     }
     
     if (allRoms.length > 0) {
+      // eslint-disable-next-line no-console
       console.log(`\nROM Test Summary: ${allRoms.length} total (${versionCounts.join(', ')})`);
     } else {
+      // eslint-disable-next-line no-console
       console.log('\nNo ROMs found. Add .z1-.z8 files to roms/ directory to test.');
     }
     

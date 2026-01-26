@@ -1157,7 +1157,7 @@ describe('Executor', () => {
 
   describe('V3 save and restore', () => {
     it('should not branch when restore is not available in V3', async () => {
-      delete (io as any).restore;
+      io.restore = undefined;
 
       const ins = makeInstruction('restore', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1170,7 +1170,7 @@ describe('Executor', () => {
     });
 
     it('should branch when save succeeds in V3', async () => {
-      io.save = async () => true;
+      io.save = async (): Promise<boolean> => true;
 
       const ins = makeInstruction('save', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1183,7 +1183,7 @@ describe('Executor', () => {
     });
 
     it('should not branch when save is not available in V3', async () => {
-      delete (io as any).save;
+      io.save = undefined;
 
       const ins = makeInstruction('save', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1196,7 +1196,7 @@ describe('Executor', () => {
     });
 
     it('should not branch when restore returns null in V3', async () => {
-      io.restore = async () => null;
+      io.restore = async (): Promise<Uint8Array | null> => null;
 
       const ins = makeInstruction('restore', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1209,7 +1209,7 @@ describe('Executor', () => {
     });
 
     it('should not branch when restore data is invalid in V3', async () => {
-      io.restore = async () => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
+      io.restore = async (): Promise<Uint8Array | null> => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
 
       const ins = makeInstruction('restore', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1240,7 +1240,7 @@ describe('Executor', () => {
       
       const saveData = createQuetzalSave(differentMemory, differentStack.snapshot(), 0x3000);
       
-      io.restore = async () => saveData;
+      io.restore = async (): Promise<Uint8Array | null> => saveData;
 
       const ins = makeInstruction('restore', [], 3, {
         branch: { branchOnTrue: true, offset: 10 }
@@ -1397,7 +1397,7 @@ describe('Executor', () => {
     describe('erase_line', () => {
       it('should call io.eraseLine when value is 1', async () => {
         let eraseLineCalled = false;
-        v5Io.eraseLine = () => { eraseLineCalled = true; };
+        v5Io.eraseLine = (): void => { eraseLineCalled = true; };
         
         const ins = makeInstruction('erase_line', [
           makeOperand(OperandType.SmallConstant, 1),
@@ -1410,7 +1410,7 @@ describe('Executor', () => {
 
       it('should not call eraseLine for other values', async () => {
         let eraseLineCalled = false;
-        v5Io.eraseLine = () => { eraseLineCalled = true; };
+        v5Io.eraseLine = (): void => { eraseLineCalled = true; };
         
         const ins = makeInstruction('erase_line', [
           makeOperand(OperandType.SmallConstant, 0),
@@ -1426,8 +1426,8 @@ describe('Executor', () => {
       it('should set foreground and background colors', async () => {
         let fgColor: number | undefined;
         let bgColor: number | undefined;
-        v5Io.setForegroundColor = (c) => { fgColor = c; };
-        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        v5Io.setForegroundColor = (c): void => { fgColor = c; };
+        v5Io.setBackgroundColor = (c): void => { bgColor = c; };
         
         const ins = makeInstruction('set_true_colour', [
           makeOperand(OperandType.LargeConstant, 0x7C00), // Red
@@ -1443,8 +1443,8 @@ describe('Executor', () => {
       it('should not set color for 0xFFFF (keep current)', async () => {
         let fgColor: number | undefined;
         let bgColor: number | undefined;
-        v5Io.setForegroundColor = (c) => { fgColor = c; };
-        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        v5Io.setForegroundColor = (c): void => { fgColor = c; };
+        v5Io.setBackgroundColor = (c): void => { bgColor = c; };
         
         const ins = makeInstruction('set_true_colour', [
           makeOperand(OperandType.LargeConstant, 0xFFFF),
@@ -1460,8 +1460,8 @@ describe('Executor', () => {
       it('should not set color for 0xFFFE (use default)', async () => {
         let fgColor: number | undefined;
         let bgColor: number | undefined;
-        v5Io.setForegroundColor = (c) => { fgColor = c; };
-        v5Io.setBackgroundColor = (c) => { bgColor = c; };
+        v5Io.setForegroundColor = (c): void => { fgColor = c; };
+        v5Io.setBackgroundColor = (c): void => { bgColor = c; };
         
         const ins = makeInstruction('set_true_colour', [
           makeOperand(OperandType.LargeConstant, 0xFFFE),
@@ -1802,7 +1802,7 @@ describe('Executor', () => {
         // Check that something was written (encoded bytes)
         // In V5, dictionary words are 6 bytes
         const byte0 = v5Memory.readByte(0x900);
-        const byte5 = v5Memory.readByte(0x905);
+        const _byte5 = v5Memory.readByte(0x905);
         expect(byte0).toBeGreaterThan(0);
         // Last word should have high bit set
         expect(v5Memory.readByte(0x904) & 0x80).toBe(0x80);
@@ -2012,7 +2012,7 @@ describe('Executor', () => {
       it('should call setInputStream on io adapter', async () => {
         let inputStreamCalled = false;
         let streamValue = -1;
-        v5Io.setInputStream = (stream: number) => {
+        v5Io.setInputStream = (stream: number): void => {
           inputStreamCalled = true;
           streamValue = stream;
         };
@@ -2032,7 +2032,7 @@ describe('Executor', () => {
       it('should call soundEffect on io adapter', async () => {
         let soundCalled = false;
         let soundParams: number[] = [];
-        v5Io.soundEffect = (number: number, effect: number, volume: number) => {
+        v5Io.soundEffect = (number: number, effect: number, volume: number): void => {
           soundCalled = true;
           soundParams = [number, effect, volume];
         };
@@ -2051,7 +2051,7 @@ describe('Executor', () => {
 
       it('should handle missing optional parameters', async () => {
         let soundParams: number[] = [];
-        v5Io.soundEffect = (number: number, effect: number, volume: number) => {
+        v5Io.soundEffect = (number: number, effect: number, volume: number): void => {
           soundParams = [number, effect, volume];
         };
 
@@ -2067,7 +2067,7 @@ describe('Executor', () => {
 
     describe('get_cursor', () => {
       it('should write cursor position to memory array', async () => {
-        v5Io.getCursor = () => ({ line: 5, column: 10 });
+        v5Io.getCursor = (): { line: number; column: number } => ({ line: 5, column: 10 });
 
         const ins = makeInstruction('get_cursor', [
           makeOperand(OperandType.LargeConstant, 0x800), // array address
@@ -2081,7 +2081,7 @@ describe('Executor', () => {
 
       it('should use default 1,1 when getCursor not available', async () => {
         // Ensure getCursor is undefined
-        delete (v5Io as any).getCursor;
+        v5Io.getCursor = undefined;
 
         const ins = makeInstruction('get_cursor', [
           makeOperand(OperandType.LargeConstant, 0x800), // array address
@@ -2098,7 +2098,7 @@ describe('Executor', () => {
       it('should call setOutputStream on io adapter', async () => {
         let outputStreamCalled = false;
         let streamParams: [number, boolean, number] = [0, false, 0];
-        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number) => {
+        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number): void => {
           outputStreamCalled = true;
           streamParams = [stream, enable, table ?? 0];
         };
@@ -2116,7 +2116,7 @@ describe('Executor', () => {
 
       it('should disable stream with negative value', async () => {
         let streamParams: [number, boolean, number] = [0, false, 0];
-        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number) => {
+        v5Io.setOutputStream = (stream: number, enable: boolean, table?: number): void => {
           streamParams = [stream, enable, table ?? 0];
         };
 
@@ -2135,7 +2135,7 @@ describe('Executor', () => {
       it('should call setTextStyle on io adapter', async () => {
         let styleCalled = false;
         let styleValue = -1;
-        v5Io.setTextStyle = (style: number) => {
+        v5Io.setTextStyle = (style: number): void => {
           styleCalled = true;
           styleValue = style;
         };
@@ -2155,7 +2155,7 @@ describe('Executor', () => {
       it('should call setBufferMode on io adapter', async () => {
         let bufferModeCalled = false;
         let bufferModeValue = false;
-        v5Io.setBufferMode = (mode: boolean) => {
+        v5Io.setBufferMode = (mode: boolean): void => {
           bufferModeCalled = true;
           bufferModeValue = mode;
         };
@@ -2172,7 +2172,7 @@ describe('Executor', () => {
 
       it('should disable buffer mode with 0', async () => {
         let bufferModeValue = true;
-        v5Io.setBufferMode = (mode: boolean) => {
+        v5Io.setBufferMode = (mode: boolean): void => {
           bufferModeValue = mode;
         };
 
@@ -2190,8 +2190,8 @@ describe('Executor', () => {
       it('should call setForegroundColor and setBackgroundColor', async () => {
         let fgColor = 0;
         let bgColor = 0;
-        v5Io.setForegroundColor = (color: number) => { fgColor = color; };
-        v5Io.setBackgroundColor = (color: number) => { bgColor = color; };
+        v5Io.setForegroundColor = (color: number): void => { fgColor = color; };
+        v5Io.setBackgroundColor = (color: number): void => { bgColor = color; };
 
         const ins = makeInstruction('set_colour', [
           makeOperand(OperandType.SmallConstant, 3), // red
@@ -2207,8 +2207,8 @@ describe('Executor', () => {
       it('should not call setForegroundColor when foreground is 0', async () => {
         let fgCalled = false;
         let bgColor = 0;
-        v5Io.setForegroundColor = () => { fgCalled = true; };
-        v5Io.setBackgroundColor = (color: number) => { bgColor = color; };
+        v5Io.setForegroundColor = (): void => { fgCalled = true; };
+        v5Io.setBackgroundColor = (color: number): void => { bgColor = color; };
 
         const ins = makeInstruction('set_colour', [
           makeOperand(OperandType.SmallConstant, 0), // current (no change)
@@ -2226,8 +2226,8 @@ describe('Executor', () => {
       it('should convert 15-bit RGB colors and call color setters', async () => {
         let fgCalled = false;
         let bgCalled = false;
-        v5Io.setForegroundColor = () => { fgCalled = true; };
-        v5Io.setBackgroundColor = () => { bgCalled = true; };
+        v5Io.setForegroundColor = (): void => { fgCalled = true; };
+        v5Io.setBackgroundColor = (): void => { bgCalled = true; };
 
         // 15-bit RGB: 0bBBBBBGGGGGRRRRR
         // Pure red: R=31, G=0, B=0 = 0x001F
@@ -2306,7 +2306,7 @@ describe('Executor', () => {
     describe('save and restore', () => {
       it('should save and return 1 in V5', async () => {
         let savedData: Uint8Array | null = null;
-        v5Io.save = async (data: Uint8Array) => {
+        v5Io.save = async (data: Uint8Array): Promise<boolean> => {
           savedData = data;
           return true;
         };
@@ -2320,7 +2320,7 @@ describe('Executor', () => {
       });
 
       it('should return 0 when save fails in V5', async () => {
-        v5Io.save = async () => false;
+        v5Io.save = async (): Promise<boolean> => false;
 
         const ins = makeInstruction('save', [], 3, { storeVariable: 16 });
 
@@ -2330,7 +2330,7 @@ describe('Executor', () => {
       });
 
       it('should return 0 when save not available in V5', async () => {
-        delete (v5Io as any).save;
+        v5Io.save = undefined;
 
         const ins = makeInstruction('save', [], 3, { storeVariable: 16 });
 
@@ -2340,7 +2340,7 @@ describe('Executor', () => {
       });
 
       it('should return 0 when restore not available in V5', async () => {
-        delete (v5Io as any).restore;
+        v5Io.restore = undefined;
 
         const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
 
@@ -2350,7 +2350,7 @@ describe('Executor', () => {
       });
 
       it('should return 0 when restore returns no data in V5', async () => {
-        v5Io.restore = async () => null;
+        v5Io.restore = async (): Promise<Uint8Array | null> => null;
 
         const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
 
@@ -2360,7 +2360,7 @@ describe('Executor', () => {
       });
 
       it('should return 0 when restore data is invalid', async () => {
-        v5Io.restore = async () => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
+        v5Io.restore = async (): Promise<Uint8Array | null> => new Uint8Array([0, 1, 2, 3]); // Invalid Quetzal
 
         const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
 
@@ -2373,7 +2373,7 @@ describe('Executor', () => {
         // Create a valid Quetzal save that matches this game
         const saveData = createQuetzalSave(v5Memory, v5Stack.snapshot(), 0x3000);
         
-        v5Io.restore = async () => saveData;
+        v5Io.restore = async (): Promise<Uint8Array | null> => saveData;
 
         const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
 
@@ -2404,7 +2404,7 @@ describe('Executor', () => {
         
         const saveData = createQuetzalSave(differentMemory, differentStack.snapshot(), 0x3000);
         
-        v5Io.restore = async () => saveData;
+        v5Io.restore = async (): Promise<Uint8Array | null> => saveData;
 
         const ins = makeInstruction('restore', [], 3, { storeVariable: 16 });
 
@@ -2491,8 +2491,8 @@ describe('Executor', () => {
 
     describe('show_status', () => {
       it('should call showStatusLine on io adapter', async () => {
-        let statusCalled = false;
-        v5Io.showStatusLine = () => { statusCalled = true; };
+        let _statusCalled = false;
+        v5Io.showStatusLine = (): void => { _statusCalled = true; };
 
         // Need to set up object table for location name
         // For simplicity, just verify no crash
@@ -2528,9 +2528,7 @@ describe('Executor', () => {
     describe('print_addr', () => {
       it('should print text at byte address', async () => {
         // Write Z-string "hi" at 0x800
-        v5Memory.writeByte(0x800, 0x94); // 'h' shifted
-        v5Memory.writeByte(0x801, 0xE9); // 'i' + end
-        v5Memory.writeWord(0x800, 0x94EE, false); // Actually write valid Z-string
+        v5Memory.writeWord(0x800, 0x94EE); // Write valid Z-string 'hi'
 
         const ins = makeInstruction('print_addr', [
           makeOperand(OperandType.LargeConstant, 0x800),
@@ -2639,7 +2637,8 @@ describe('Executor', () => {
     let v4Io: TestIOAdapter;
     let v4TextDecoder: ZCharDecoder;
     let v4Executor: Executor;
-    let v4Tokenizer: Tokenizer;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let v4Tokenizer: any;
 
     function createV4Memory(): Memory {
       const size = 0x10000;
@@ -2675,8 +2674,8 @@ describe('Executor', () => {
       v4TextDecoder = new ZCharDecoder(v4Memory, 4, v4Header.abbreviationsAddress);
       const { Dictionary } = await import('../dictionary/Dictionary');
       const { Tokenizer } = await import('../dictionary/Tokenizer');
-      const dictionary = new Dictionary(v4Memory, v4Header.dictionaryAddress, 4);
-      v4Tokenizer = new Tokenizer(v4Memory, dictionary, 4);
+      const dictionary = new Dictionary(v4Memory, 4, v4Header.dictionaryAddress);
+      v4Tokenizer = new Tokenizer(v4Memory, 4, dictionary);
       v4Executor = new Executor(v4Memory, v4Header, v4Stack, v4Variables, 4, v4Io, v4TextDecoder, v4Tokenizer);
     });
 

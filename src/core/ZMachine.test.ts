@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ZMachine, RunState } from './ZMachine';
 import { TestIOAdapter } from '../io/TestIOAdapter';
+import { InstructionForm, OperandCount } from '../types/ZMachineTypes';
 
 /**
  * Create a minimal valid V5 story file for testing
@@ -331,6 +332,7 @@ describe('ZMachine', () => {
       
       // We need to manually set state to WaitingForInput for this test
       // Access private state for testing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (zm as any)._state = RunState.WaitingForInput;
       
       await zm.provideInput('test');
@@ -341,7 +343,7 @@ describe('ZMachine', () => {
 
   describe('restart', () => {
     it('should reset dynamic memory to original state', () => {
-      const view = new DataView(storyData);
+      const _view = new DataView(storyData);
       const zm = new ZMachine(storyData, io);
       
       // Modify something in dynamic memory
@@ -384,8 +386,9 @@ describe('ZMachine', () => {
       // Mock decoder to return a valid instruction
       vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
         opcode: 0,
-        form: 'short',
-        operandCount: 0,
+        opcodeName: 'nop',
+        form: InstructionForm.Short,
+        operandCount: OperandCount.OP0,
         operands: [],
         address: zm.pc,
         length: 1,
@@ -408,8 +411,9 @@ describe('ZMachine', () => {
       // Mock decoder to return a valid instruction
       vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
         opcode: 0,
-        form: 'short',
-        operandCount: 0,
+        opcodeName: 'nop',
+        form: InstructionForm.Short,
+        operandCount: OperandCount.OP0,
         operands: [],
         address: zm.pc,
         length: 1,
@@ -434,24 +438,27 @@ describe('ZMachine', () => {
       vi.spyOn(zm.decoder, 'decode')
         .mockReturnValueOnce({
           opcode: 0,
-          form: 'short',
-          operandCount: 0,
+          opcodeName: 'nop',
+          form: InstructionForm.Short,
+          operandCount: OperandCount.OP0,
           operands: [],
           address: 0x1000,
           length: 1,
         })
         .mockReturnValueOnce({
           opcode: 0,
-          form: 'short',
-          operandCount: 0,
+          opcodeName: 'nop',
+          form: InstructionForm.Short,
+          operandCount: OperandCount.OP0,
           operands: [],
           address: 0x1001,
           length: 1,
         })
         .mockReturnValueOnce({
           opcode: 0,
-          form: 'short',
-          operandCount: 0,
+          opcodeName: 'nop',
+          form: InstructionForm.Short,
+          operandCount: OperandCount.OP0,
           operands: [],
           address: 0x1002,
           length: 1,
@@ -470,6 +477,7 @@ describe('ZMachine', () => {
       const initialPC = zm.pc;
       
       // Set state to Halted
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (zm as any)._state = RunState.Halted;
       
       // Spy on decoder to verify it's not called
@@ -494,13 +502,15 @@ describe('ZMachine', () => {
       // Mock decoder to return a valid instruction
       vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
         opcode: 0,
-        form: 'short',
-        operandCount: 0,
+        opcodeName: 'nop',
+        form: InstructionForm.Short,
+        operandCount: OperandCount.OP0,
         operands: [],
         address: zm.pc,
         length: 1,
       });
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (zm as any)._state = RunState.Running;
       await zm.step();
       
@@ -519,13 +529,15 @@ describe('ZMachine', () => {
       // Mock decoder to return a valid instruction
       vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
         opcode: 0,
-        form: 'short',
-        operandCount: 0,
+        opcodeName: 'nop',
+        form: InstructionForm.Short,
+        operandCount: OperandCount.OP0,
         operands: [],
         address: zm.pc,
         length: 1,
       });
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (zm as any)._state = RunState.Running;
       await zm.step();
       
@@ -543,13 +555,15 @@ describe('ZMachine', () => {
       // Mock decoder to return a valid instruction with known length
       vi.spyOn(zm.decoder, 'decode').mockReturnValueOnce({
         opcode: 0,
-        form: 'short',
-        operandCount: 0,
+        opcodeName: 'nop',
+        form: InstructionForm.Short,
+        operandCount: OperandCount.OP0,
         operands: [],
         address: initialPC,
         length: instructionLength,
       });
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (zm as any)._state = RunState.Running;
       await zm.step();
       

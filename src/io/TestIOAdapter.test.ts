@@ -173,16 +173,16 @@ describe('TestIOAdapter', () => {
   describe('cursor', () => {
     it('should set and get cursor position', () => {
       io.setCursor(5, 10);
-      const cursor = io.getCursor();
+      const cursor = io.getCursor!();
       expect(cursor.line).toBe(5);
       expect(cursor.column).toBe(10);
     });
 
     it('should return copy of cursor position', () => {
       io.setCursor(1, 1);
-      const cursor1 = io.getCursor();
+      const cursor1 = io.getCursor!();
       cursor1.line = 99;
-      const cursor2 = io.getCursor();
+      const cursor2 = io.getCursor!();
       expect(cursor2.line).toBe(1);
     });
   });
