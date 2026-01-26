@@ -96,6 +96,27 @@ describe('ZMachineRunner', () => {
       
       expect(states[states.length - 1]).toBe('waiting-input');
     });
+
+    it('should handle unknown run state as stopped', async () => {
+      const states: RunnerState[] = [];
+      
+      // Mock to return an unknown state (e.g., 99)
+      const MockZMachine = ZMachine as unknown as ReturnType<typeof vi.fn>;
+      MockZMachine.mockImplementationOnce(() => ({
+        run: vi.fn().mockResolvedValue(99),
+        restart: vi.fn(),
+      }));
+      
+      const runner = new ZMachineRunner({
+        storyData,
+        io,
+        onStateChange: (state): void => { states.push(state); },
+      });
+      
+      await runner.run();
+      
+      expect(states[states.length - 1]).toBe('stopped');
+    });
   });
 
   describe('run', () => {
