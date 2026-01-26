@@ -49,6 +49,93 @@ export const TrueColor = {
 } as const;
 
 /**
+ * Text style flags (can be combined with bitwise OR)
+ * Reference: Z-Machine Specification §8.7.2
+ */
+export const TextStyle = {
+  /** Roman (reset all styles) */
+  ROMAN: 0,
+  /** Reverse video (swap foreground/background) */
+  REVERSE_VIDEO: 1,
+  /** Bold text */
+  BOLD: 2,
+  /** Italic text */
+  ITALIC: 4,
+  /** Fixed-pitch (monospace) font */
+  FIXED_PITCH: 8,
+} as const;
+
+/**
+ * Standard Z-machine color codes
+ * Reference: Z-Machine Specification §8.3.1
+ */
+export const ZColor = {
+  /** Current color (no change) */
+  CURRENT: 0,
+  /** Default color for the platform */
+  DEFAULT: 1,
+  /** Black */
+  BLACK: 2,
+  /** Red */
+  RED: 3,
+  /** Green */
+  GREEN: 4,
+  /** Yellow */
+  YELLOW: 5,
+  /** Blue */
+  BLUE: 6,
+  /** Magenta */
+  MAGENTA: 7,
+  /** Cyan */
+  CYAN: 8,
+  /** White */
+  WHITE: 9,
+  /** Light grey (V6 only) */
+  LIGHT_GREY: 10,
+  /** Medium grey (V6 only) */
+  MEDIUM_GREY: 11,
+  /** Dark grey (V6 only) */
+  DARK_GREY: 12,
+} as const;
+
+/**
+ * Output stream numbers
+ * Reference: Z-Machine Specification §7.1
+ */
+export const OutputStream = {
+  /** Screen output */
+  SCREEN: 1,
+  /** Transcript file */
+  TRANSCRIPT: 2,
+  /** Memory table (for text encoding) */
+  MEMORY: 3,
+  /** Player input script recording */
+  COMMANDS: 4,
+} as const;
+
+/**
+ * Input stream numbers
+ * Reference: Z-Machine Specification §7.2
+ */
+export const InputStream = {
+  /** Keyboard input */
+  KEYBOARD: 0,
+  /** File input (command playback) */
+  FILE: 1,
+} as const;
+
+/**
+ * Window numbers
+ * Reference: Z-Machine Specification §8.7
+ */
+export const ZWindow = {
+  /** Lower/main window (scrolling text) */
+  LOWER: 0,
+  /** Upper/status window (non-scrolling) */
+  UPPER: 1,
+} as const;
+
+/**
  * Operand types as encoded in instruction operand type bytes
  *
  * §4.2: Operand types

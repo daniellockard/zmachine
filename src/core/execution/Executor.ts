@@ -311,6 +311,31 @@ export class Executor {
   }
 
   /**
+   * Handle save/restore result based on Z-machine version.
+   * V1-3: Uses branch semantics
+   * V4+: Uses store semantics with 0/1/2 values
+   *
+   * @param ins The instruction
+   * @param success Whether the operation succeeded
+   * @param isRestore If true and successful, returns 2 instead of 1 for V4+
+   * @returns ExecutionResult for branching, or undefined if stored
+   */
+  private handleSaveRestoreResult(
+    ins: DecodedInstruction,
+    success: boolean,
+    isRestore: boolean = false
+  ): ExecutionResult | undefined {
+    if (this.version <= 3) {
+      return this.branch(ins, success);
+    } else {
+      // V4+: 0 = failed, 1 = saved, 2 = restored
+      const value = success ? (isRestore ? 2 : 1) : 0;
+      this.storeResult(ins, value);
+      return undefined;
+    }
+  }
+
+  /**
    * Call a routine
    */
   callRoutine(
@@ -879,95 +904,62 @@ export class Executor {
     // - IFhd chunk: release, serial, checksum, PC
     // - UMem chunk: uncompressed dynamic memory
     // - Stks chunk: stack state
-    if (this.io.save) {
-      // PC to save is the address right after this instruction
-      // so restore will continue from the right place
-      const returnPC = ins.address + ins.length;
+    const nextPC = ins.address + ins.length;
 
-      // Create Quetzal save file
-      const saveData = createQuetzalSave(this.memory, this.stack.snapshot(), returnPC);
-
-      const saved = await this.io.save(saveData);
-      if (this.version <= 3) {
-        return this.branch(ins, saved);
-      } else {
-        this.storeResult(ins, saved ? 1 : 0);
-      }
-    } else {
-      if (this.version <= 3) {
-        return this.branch(ins, false);
-      } else {
-        this.storeResult(ins, 0);
-      }
+    if (!this.io.save) {
+      return this.handleSaveRestoreResult(ins, false) ?? { nextPC };
     }
-    return { nextPC: ins.address + ins.length };
+
+    // Create Quetzal save file with PC pointing after this instruction
+    const saveData = createQuetzalSave(this.memory, this.stack.snapshot(), nextPC);
+    const saved = await this.io.save(saveData);
+
+    return this.handleSaveRestoreResult(ins, saved) ?? { nextPC };
   }
 
   private async op_restore(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V3: restore branches, V4+: restore stores
     // Parses Quetzal save format
-    if (this.io.restore) {
-      const data = await this.io.restore();
-      if (data) {
-        try {
-          // Parse Quetzal save file
-          const saveState = parseQuetzalSave(data);
+    const nextPC = ins.address + ins.length;
 
-          // Verify this save is for the same game
-          if (!verifySaveCompatibility(saveState, this.memory)) {
-            // Save is for a different game
-            if (this.version <= 3) {
-              return this.branch(ins, false);
-            } else {
-              this.storeResult(ins, 0);
-              return { nextPC: ins.address + ins.length };
-            }
-          }
-
-          // Restore dynamic memory
-          const staticBase = this.header.staticMemoryBase;
-          const restoreSize = Math.min(saveState.dynamicMemory.length, staticBase);
-          for (let i = 0; i < restoreSize; i++) {
-            this.memory.writeByte(i, saveState.dynamicMemory[i]);
-          }
-
-          // Restore call stack
-          this.stack.restore(saveState.callStack);
-
-          // For V4+, store 2 to indicate successful restore
-          // The store happens in the saved context, not current
-          if (this.version >= 4) {
-            // The saved PC points to after the save instruction
-            // which has a store byte - we need to store 2 there
-            // This is handled by returning to saved PC with result stored
-            this.storeResult(ins, 2);
-          }
-
-          // Return to the saved PC
-          return { nextPC: saveState.gameId.pc };
-        } catch {
-          // Failed to parse save file
-          if (this.version <= 3) {
-            return this.branch(ins, false);
-          } else {
-            this.storeResult(ins, 0);
-          }
-        }
-      } else {
-        if (this.version <= 3) {
-          return this.branch(ins, false);
-        } else {
-          this.storeResult(ins, 0);
-        }
-      }
-    } else {
-      if (this.version <= 3) {
-        return this.branch(ins, false);
-      } else {
-        this.storeResult(ins, 0);
-      }
+    if (!this.io.restore) {
+      return this.handleSaveRestoreResult(ins, false) ?? { nextPC };
     }
-    return { nextPC: ins.address + ins.length };
+
+    const data = await this.io.restore();
+    if (!data) {
+      return this.handleSaveRestoreResult(ins, false) ?? { nextPC };
+    }
+
+    try {
+      // Parse Quetzal save file
+      const saveState = parseQuetzalSave(data);
+
+      // Verify this save is for the same game
+      if (!verifySaveCompatibility(saveState, this.memory)) {
+        return this.handleSaveRestoreResult(ins, false) ?? { nextPC };
+      }
+
+      // Restore dynamic memory
+      const staticBase = this.header.staticMemoryBase;
+      const restoreSize = Math.min(saveState.dynamicMemory.length, staticBase);
+      for (let i = 0; i < restoreSize; i++) {
+        this.memory.writeByte(i, saveState.dynamicMemory[i]);
+      }
+
+      // Restore call stack
+      this.stack.restore(saveState.callStack);
+
+      // For V4+, store 2 to indicate successful restore
+      // (handled by handleSaveRestoreResult with isRestore=true)
+      this.handleSaveRestoreResult(ins, true, true);
+
+      // Return to the saved PC
+      return { nextPC: saveState.gameId.pc };
+    } catch {
+      // Failed to parse save file
+      return this.handleSaveRestoreResult(ins, false) ?? { nextPC };
+    }
   }
 
   private op_restart(_ins: DecodedInstruction): ExecutionResult {

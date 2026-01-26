@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-26
+
+### Added
+- `TextStyle` constants for text style bit flags (ROMAN, REVERSE_VIDEO, BOLD, ITALIC, FIXED_PITCH)
+- `ZColor` constants for standard Z-machine color palette (BLACK through WHITE, plus greys)
+- `OutputStream` constants for output stream identifiers (SCREEN, TRANSCRIPT, MEMORY, COMMANDS)
+- `InputStream` constants for input stream identifiers (KEYBOARD, FILE)
+- `ZWindow` constants for window identifiers (LOWER, UPPER)
+- Private helper method `handleSaveRestoreResult()` in Executor for cleaner save/restore logic
+
+### Changed
+- WebIOAdapter now uses `DocumentFragment` for batched DOM operations in `print()` (performance)
+- WebIOAdapter now uses `ZWindow.UPPER`/`ZWindow.LOWER` instead of magic numbers 0/1
+- WebIOAdapter now uses `TextStyle.*` constants instead of magic bit flags
+- WebIOAdapter now uses `ZColor.*` constants for color palette mapping
+- Refactored `op_save` and `op_restore` to use shared helper, reducing code duplication
+
 ## [0.3.0] - 2026-01-26
 
 ### Added

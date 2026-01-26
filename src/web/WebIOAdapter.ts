@@ -8,7 +8,7 @@
  */
 
 import { IOAdapter, ReadLineResult } from '../io/IOAdapter';
-import { ZVersion } from '../types/ZMachineTypes';
+import { TextStyle, ZColor, ZVersion, ZWindow } from '../types/ZMachineTypes';
 
 /**
  * Configuration for the WebIOAdapter
@@ -135,7 +135,7 @@ export class WebIOAdapter implements IOAdapter {
     }
 
     // Route output based on current window
-    if (this.currentWindow === 1 && this.status) {
+    if (this.currentWindow === ZWindow.UPPER && this.status) {
       // Upper window (status line area) - buffer text for display
       this.upperWindowText += text;
       // Update status element with the buffered text
@@ -143,15 +143,28 @@ export class WebIOAdapter implements IOAdapter {
       this.status.textContent = this.upperWindowText.replace(/\n/g, ' ').trim();
     } else {
       // Lower window (main output)
-      const span = document.createElement('span');
-      span.textContent = text;
+      // Use document fragment for batched DOM operations
+      const fragment = document.createDocumentFragment();
 
-      // Apply text styles
-      this.applyTextStyle(span);
+      // Split text on newlines to handle them separately
+      const lines = text.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].length > 0) {
+          const span = document.createElement('span');
+          span.textContent = lines[i];
+          this.applyTextStyle(span);
+          fragment.appendChild(span);
+        }
+        // Add line break for all newlines except trailing one
+        if (i < lines.length - 1) {
+          fragment.appendChild(document.createElement('br'));
+        }
+      }
 
-      this.output.appendChild(span);
+      // Single DOM append for all elements
+      this.output.appendChild(fragment);
 
-      // Auto-scroll to bottom
+      // Auto-scroll to bottom (single reflow)
       this.output.scrollTop = this.output.scrollHeight;
     }
   }
@@ -162,7 +175,7 @@ export class WebIOAdapter implements IOAdapter {
    */
   private applyTextStyle(element: HTMLElement): void {
     // Apply colors (unless reverse video is set, which swaps them)
-    if (!(this.textStyle & 1)) {
+    if (!(this.textStyle & TextStyle.REVERSE_VIDEO)) {
       if (this.foregroundColor) {
         element.style.color = this.foregroundColor;
       }
@@ -171,22 +184,22 @@ export class WebIOAdapter implements IOAdapter {
       }
     }
 
-    if (this.textStyle & 1) {
+    if (this.textStyle & TextStyle.REVERSE_VIDEO) {
       // Reverse video - swap foreground and background
       const fg = this.foregroundColor || 'var(--text-color, #00ff00)';
       const bg = this.backgroundColor || 'var(--bg-color, #0a0a0a)';
       element.style.backgroundColor = fg;
       element.style.color = bg;
     }
-    if (this.textStyle & 2) {
+    if (this.textStyle & TextStyle.BOLD) {
       // Bold
       element.style.fontWeight = 'bold';
     }
-    if (this.textStyle & 4) {
+    if (this.textStyle & TextStyle.ITALIC) {
       // Italic
       element.style.fontStyle = 'italic';
     }
-    if (this.textStyle & 8) {
+    if (this.textStyle & TextStyle.FIXED_PITCH) {
       // Fixed-width (already monospace, but ensure it)
       element.style.fontFamily = 'monospace';
     }
@@ -283,7 +296,7 @@ export class WebIOAdapter implements IOAdapter {
 
   setWindow(window: number): void {
     // When switching windows, clear upper window buffer if switching TO upper window
-    if (window === 1 && this.currentWindow !== 1) {
+    if (window === ZWindow.UPPER && this.currentWindow !== ZWindow.UPPER) {
       this.upperWindowText = '';
     }
     this.currentWindow = window;
@@ -303,7 +316,7 @@ export class WebIOAdapter implements IOAdapter {
 
   setCursor(line: number, column: number): void {
     // Cursor positioning only applies to upper window
-    if (this.currentWindow === 1) {
+    if (this.currentWindow === ZWindow.UPPER) {
       this.upperCursor = { line, column };
       // When cursor moves to column 1, reset the line text
       if (column === 1) {
@@ -318,7 +331,7 @@ export class WebIOAdapter implements IOAdapter {
 
   eraseLine(): void {
     // Erase from cursor to end of line in upper window
-    if (this.currentWindow === 1 && this.status) {
+    if (this.currentWindow === ZWindow.UPPER && this.status) {
       // For simple implementation, just clear the pending text
       // A full implementation would need to track line content
       this.upperWindowText = '';
@@ -326,24 +339,30 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   setTextStyle(style: number): void {
-    // Style 0 resets to roman, otherwise styles are cumulative (bitmask)
-    if (style === 0) {
-      this.textStyle = 0;
+    // Style 0 (ROMAN) resets to roman, otherwise styles are cumulative (bitmask)
+    if (style === TextStyle.ROMAN) {
+      this.textStyle = TextStyle.ROMAN;
     } else {
       this.textStyle = style;
     }
   }
 
-  /** Z-machine color palette */
+  /**
+   * Z-machine color palette mapping ZColor constants to CSS hex colors.
+   * Colors 0 (CURRENT) and 1 (DEFAULT) are handled specially.
+   */
   private static readonly COLORS: Record<number, string> = {
-    2: '#000000', // black
-    3: '#ff0000', // red
-    4: '#00ff00', // green
-    5: '#ffff00', // yellow
-    6: '#0000ff', // blue
-    7: '#ff00ff', // magenta
-    8: '#00ffff', // cyan
-    9: '#ffffff', // white
+    [ZColor.BLACK]: '#000000',
+    [ZColor.RED]: '#ff0000',
+    [ZColor.GREEN]: '#00ff00',
+    [ZColor.YELLOW]: '#ffff00',
+    [ZColor.BLUE]: '#0000ff',
+    [ZColor.MAGENTA]: '#ff00ff',
+    [ZColor.CYAN]: '#00ffff',
+    [ZColor.WHITE]: '#ffffff',
+    [ZColor.LIGHT_GREY]: '#c0c0c0',
+    [ZColor.MEDIUM_GREY]: '#808080',
+    [ZColor.DARK_GREY]: '#404040',
   };
 
   /** Current foreground color (CSS) */
@@ -353,8 +372,8 @@ export class WebIOAdapter implements IOAdapter {
   private backgroundColor: string = '';
 
   setForegroundColor(color: number): void {
-    if (color === 1) {
-      // Default
+    if (color === ZColor.DEFAULT) {
+      // Reset to default
       this.foregroundColor = '';
     } else if (color in WebIOAdapter.COLORS) {
       this.foregroundColor = WebIOAdapter.COLORS[color];
@@ -362,8 +381,8 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   setBackgroundColor(color: number): void {
-    if (color === 1) {
-      // Default
+    if (color === ZColor.DEFAULT) {
+      // Reset to default
       this.backgroundColor = '';
     } else if (color in WebIOAdapter.COLORS) {
       this.backgroundColor = WebIOAdapter.COLORS[color];
