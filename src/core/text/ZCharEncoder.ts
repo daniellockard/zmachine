@@ -115,9 +115,10 @@ export function encodeText(text: string, version: ZVersion): number[] {
   const wordCount = version <= 3 ? 2 : 3; // 2 words for V1-3, 3 for V4+
 
   for (let w = 0; w < wordCount; w++) {
-    const c0 = zchars[w * 3] || 5;
-    const c1 = zchars[w * 3 + 1] || 5;
-    const c2 = zchars[w * 3 + 2] || 5;
+    // Note: zchars is always padded to exactly maxZChars, so all indices are valid
+    const c0 = zchars[w * 3];
+    const c1 = zchars[w * 3 + 1];
+    const c2 = zchars[w * 3 + 2];
 
     // Pack: [c0:5][c1:5][c2:5] + bit 15 set on last word
     let word = ((c0 & 0x1F) << 10) | ((c1 & 0x1F) << 5) | (c2 & 0x1F);

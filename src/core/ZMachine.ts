@@ -84,11 +84,6 @@ export class ZMachine {
     this.version = this.header.version as ZVersion;
     this.io = io;
 
-    // Validate version
-    if (this.version < 1 || this.version > 8) {
-      throw new Error(`Unsupported Z-machine version: ${this.version}`);
-    }
-
     // Initialize components
     this.stack = new Stack();
     this.stack.initialize(0); // No locals at top level

@@ -364,7 +364,6 @@ export class Decoder {
       case 0b00: return OperandType.LargeConstant;
       case 0b01: return OperandType.SmallConstant;
       case 0b10: return OperandType.Variable;
-      case 0b11: return OperandType.Omitted;
       default: return OperandType.Omitted;
     }
   }

@@ -1043,7 +1043,7 @@ export class Executor {
     // V1-4: sread text parse
     // V5+: aread text parse time routine -> (result)
     const textBuffer = this.getOperandValue(ins.operands[0]);
-    const parseBuffer = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : 0;
+    const parseBuffer = this.getOperandValue(ins.operands[1]);
     // time and routine operands are for timed input (V4+, not fully implemented)
     
     const maxLen = this.memory.readByte(textBuffer);
@@ -1083,7 +1083,7 @@ export class Executor {
     // V4+ read opcode: aread text parse time routine -> (result)
     // In V5+, byte 1 of text buffer stores actual character count
     const textBuffer = this.getOperandValue(ins.operands[0]);
-    const parseBuffer = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : 0;
+    const parseBuffer = this.getOperandValue(ins.operands[1]);
     // time and routine operands are for timed input (not implemented)
     
     const maxLen = this.memory.readByte(textBuffer);
