@@ -1,23 +1,24 @@
 /**
  * Object Table
- * 
+ *
  * The Z-machine's object system is a tree structure where each object has:
  * - A parent object (0 = no parent)
  * - A sibling object (0 = no sibling)
  * - A child object (0 = no child)
  * - A set of attributes (flags)
  * - A property table with variable-length properties
- * 
+ *
  * V1-3: 31 attributes, 255 objects max, object entries are 9 bytes
  * V4+:  48 attributes, 65535 objects max, object entries are 14 bytes
- * 
+ *
  * Reference: Z-Machine Specification §12
- * 
+ *
  * @module
  */
 
 import { ByteAddress, ObjectNumber, ZVersion } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
+import { ObjectError } from '../errors/ZMachineError';
 
 /**
  * Object entry structure for V1-3
@@ -88,7 +89,7 @@ export class ObjectTable {
    */
   getObjectAddress(objectNum: ObjectNumber): ByteAddress {
     if (objectNum < 1 || objectNum > this.maxObjects) {
-      throw new Error(`Invalid object number: ${objectNum}`);
+      throw new ObjectError('Invalid object number', objectNum);
     }
     // Objects are 1-indexed, so subtract 1
     return this.entriesStart + (objectNum - 1) * this.entrySize;
@@ -196,7 +197,7 @@ export class ObjectTable {
    */
   testAttribute(objectNum: ObjectNumber, attribute: number): boolean {
     if (attribute < 0 || attribute >= this.attrBytes * 8) {
-      throw new Error(`Invalid attribute number: ${attribute}`);
+      throw new ObjectError(`Invalid attribute number: ${attribute}`, objectNum);
     }
 
     const addr = this.getObjectAddress(objectNum);
@@ -215,7 +216,7 @@ export class ObjectTable {
    */
   setAttribute(objectNum: ObjectNumber, attribute: number): void {
     if (attribute < 0 || attribute >= this.attrBytes * 8) {
-      throw new Error(`Invalid attribute number: ${attribute}`);
+      throw new ObjectError(`Invalid attribute number: ${attribute}`, objectNum);
     }
 
     const addr = this.getObjectAddress(objectNum);
@@ -231,7 +232,7 @@ export class ObjectTable {
    */
   clearAttribute(objectNum: ObjectNumber, attribute: number): void {
     if (attribute < 0 || attribute >= this.attrBytes * 8) {
-      throw new Error(`Invalid attribute number: ${attribute}`);
+      throw new ObjectError(`Invalid attribute number: ${attribute}`, objectNum);
     }
 
     const addr = this.getObjectAddress(objectNum);
@@ -313,7 +314,7 @@ export class ObjectTable {
   getPropertyDefault(propNum: number): number {
     const maxProps = this.version <= 3 ? 31 : 63;
     if (propNum < 1 || propNum > maxProps) {
-      throw new Error(`Invalid property number: ${propNum}`);
+      throw new ObjectError(`Invalid property number: ${propNum}`, 0);
     }
     // Property defaults are stored as words, 1-indexed
     return this.memory.readWord(this.tableAddress + (propNum - 1) * 2);

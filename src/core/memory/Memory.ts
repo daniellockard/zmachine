@@ -14,6 +14,7 @@
 
 import { ByteAddress, Word, Byte } from '../../types/ZMachineTypes';
 import { HeaderAddress } from './Header';
+import { MemoryError } from '../errors/ZMachineError';
 
 /**
  * Z-machine memory implementation
@@ -166,7 +167,7 @@ export class Memory {
    */
   private validateAddress(address: ByteAddress): void {
     if (address < 0 || address >= this.buffer.byteLength) {
-      throw new Error(`Memory read out of bounds: 0x${address.toString(16)}`);
+      throw new MemoryError('Memory read out of bounds', address, 'read');
     }
   }
 
@@ -176,9 +177,10 @@ export class Memory {
   private validateWriteAddress(address: ByteAddress): void {
     this.validateAddress(address);
     if (address >= this.staticMemoryBase) {
-      throw new Error(
-        `Cannot write to static/high memory at 0x${address.toString(16)} ` +
-          `(static memory starts at 0x${this.staticMemoryBase.toString(16)})`
+      throw new MemoryError(
+        `Cannot write to static/high memory (static starts at 0x${this.staticMemoryBase.toString(16)})`,
+        address,
+        'write'
       );
     }
   }

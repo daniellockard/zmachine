@@ -13,9 +13,12 @@ import {
   ByteAddress,
   DecodedInstruction,
   ExecutionResult,
+  HeaderFlags,
   Operand,
   OperandType,
+  RandomLCG,
   TrueColor,
+  ZSCII,
   ZVersion,
 } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
@@ -31,6 +34,7 @@ import { Dictionary } from '../dictionary/Dictionary';
 import { Tokenizer } from '../dictionary/Tokenizer';
 import { encodeText } from '../text/ZCharEncoder';
 import { createQuetzalSave, parseQuetzalSave, verifySaveCompatibility } from '../state/Quetzal';
+import { OpcodeError } from '../errors/ZMachineError';
 
 /**
  * Handler function for an opcode
@@ -253,7 +257,7 @@ export class Executor {
       case OperandType.Variable:
         return this.variables.load(operand.value);
       default:
-        throw new Error(`Invalid operand type: ${operand.type}`);
+        throw new OpcodeError(`Invalid operand type: ${operand.type}`, 'getOperandValue', 0);
     }
   }
 
@@ -264,6 +268,15 @@ export class Executor {
     if (instruction.storeVariable !== undefined) {
       this.variables.store(instruction.storeVariable, value & 0xffff);
     }
+  }
+
+  /**
+   * Store a result value and continue to the next instruction.
+   * Common pattern for opcodes that store a result.
+   */
+  private storeAndContinue(ins: DecodedInstruction, value: number): ExecutionResult {
+    this.storeResult(ins, value);
+    return { nextPC: ins.address + ins.length };
   }
 
   /**
@@ -570,15 +583,13 @@ export class Executor {
   private op_or(ins: DecodedInstruction): ExecutionResult {
     const a = this.getOperandValue(ins.operands[0]);
     const b = this.getOperandValue(ins.operands[1]);
-    this.storeResult(ins, a | b);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, a | b);
   }
 
   private op_and(ins: DecodedInstruction): ExecutionResult {
     const a = this.getOperandValue(ins.operands[0]);
     const b = this.getOperandValue(ins.operands[1]);
-    this.storeResult(ins, a & b);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, a & b);
   }
 
   private op_test_attr(ins: DecodedInstruction): ExecutionResult {
@@ -625,16 +636,14 @@ export class Executor {
     const array = this.getOperandValue(ins.operands[0]);
     const wordIndex = this.getOperandValue(ins.operands[1]);
     const value = this.memory.readWord(array + wordIndex * 2);
-    this.storeResult(ins, value);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, value);
   }
 
   private op_loadb(ins: DecodedInstruction): ExecutionResult {
     const array = this.getOperandValue(ins.operands[0]);
     const byteIndex = this.getOperandValue(ins.operands[1]);
     const value = this.memory.readByte(array + byteIndex);
-    this.storeResult(ins, value);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, value);
   }
 
   private op_get_prop(ins: DecodedInstruction): ExecutionResult {
@@ -642,8 +651,7 @@ export class Executor {
     const obj = this.getOperandValue(ins.operands[0]);
     const prop = this.getOperandValue(ins.operands[1]);
     const value = this.properties.getProperty(obj, prop);
-    this.storeResult(ins, value);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, value);
   }
 
   private op_get_prop_addr(ins: DecodedInstruction): ExecutionResult {
@@ -651,8 +659,7 @@ export class Executor {
     const obj = this.getOperandValue(ins.operands[0]);
     const prop = this.getOperandValue(ins.operands[1]);
     const addr = this.properties.getPropertyAddress(obj, prop);
-    this.storeResult(ins, addr);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, addr);
   }
 
   private op_get_next_prop(ins: DecodedInstruction): ExecutionResult {
@@ -660,29 +667,25 @@ export class Executor {
     const obj = this.getOperandValue(ins.operands[0]);
     const prop = this.getOperandValue(ins.operands[1]);
     const nextProp = this.properties.getNextProperty(obj, prop);
-    this.storeResult(ins, nextProp);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, nextProp);
   }
 
   private op_add(ins: DecodedInstruction): ExecutionResult {
     const a = toSigned16(this.getOperandValue(ins.operands[0]));
     const b = toSigned16(this.getOperandValue(ins.operands[1]));
-    this.storeResult(ins, a + b);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, a + b);
   }
 
   private op_sub(ins: DecodedInstruction): ExecutionResult {
     const a = toSigned16(this.getOperandValue(ins.operands[0]));
     const b = toSigned16(this.getOperandValue(ins.operands[1]));
-    this.storeResult(ins, a - b);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, a - b);
   }
 
   private op_mul(ins: DecodedInstruction): ExecutionResult {
     const a = toSigned16(this.getOperandValue(ins.operands[0]));
     const b = toSigned16(this.getOperandValue(ins.operands[1]));
-    this.storeResult(ins, a * b);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, a * b);
   }
 
   private op_div(ins: DecodedInstruction): ExecutionResult {
@@ -705,8 +708,7 @@ export class Executor {
     }
     // Remainder has same sign as dividend
     const result = a % b;
-    this.storeResult(ins, result);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, result);
   }
 
   private op_call_2s(ins: DecodedInstruction): ExecutionResult {
@@ -766,8 +768,7 @@ export class Executor {
     // get_parent object -> (result) - get parent object
     const obj = this.getOperandValue(ins.operands[0]);
     const parent = this.objectTable.getParent(obj);
-    this.storeResult(ins, parent);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, parent);
   }
 
   private op_get_prop_len(ins: DecodedInstruction): ExecutionResult {
@@ -775,8 +776,7 @@ export class Executor {
     const propAddr = this.getOperandValue(ins.operands[0]);
     // Special case: address 0 returns length 0
     const length = propAddr === 0 ? 0 : this.properties.getPropertyLength(propAddr);
-    this.storeResult(ins, length);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, length);
   }
 
   private op_inc(ins: DecodedInstruction): ExecutionResult {
@@ -852,13 +852,12 @@ export class Executor {
     const varNum = this.getOperandValue(ins.operands[0]);
     // load (variable) -> (result) - indirect load
     const value = this.variables.peek(varNum);
-    this.storeResult(ins, value);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, value);
   }
 
   private op_not(ins: DecodedInstruction): ExecutionResult {
     const value = this.getOperandValue(ins.operands[0]);
-    this.storeResult(ins, ~value & 0xffff);
+    return this.storeAndContinue(ins, ~value & 0xffff);
     return { nextPC: ins.address + ins.length };
   }
 
@@ -1009,7 +1008,7 @@ export class Executor {
       const turnsOrMinutes = this.variables.load(18);
 
       // Check if time game (bit 1 of flags1)
-      const isTimeGame = (this.header.flags1 & 0x02) !== 0;
+      const isTimeGame = (this.header.flags1 & HeaderFlags.FLAGS1_TIME_GAME) !== 0;
 
       this.io.showStatusLine(locationName, scoreOrHours, turnsOrMinutes, isTimeGame);
     }
@@ -1059,13 +1058,17 @@ export class Executor {
     return { nextPC: ins.address + ins.length };
   }
 
-  private async op_sread(ins: DecodedInstruction): Promise<ExecutionResult> {
-    // §15: sread/aread - read and tokenize player input
-    // V1-4: sread text parse
-    // V5+: aread text parse time routine -> (result)
+  /**
+   * Shared implementation for sread and aread opcodes
+   * §15: Read and tokenize player input
+   */
+  private async readInput(
+    ins: DecodedInstruction,
+    useTerminator: boolean
+  ): Promise<ExecutionResult> {
     const textBuffer = this.getOperandValue(ins.operands[0]);
     const parseBuffer = this.getOperandValue(ins.operands[1]);
-    // time and routine operands are for timed input (V4+, not fully implemented)
+    // time and routine operands are for timed input (not fully implemented)
 
     const maxLen = this.memory.readByte(textBuffer);
     const result = await this.io.readLine(maxLen);
@@ -1092,52 +1095,23 @@ export class Executor {
       this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
     }
 
-    // V5+ returns the terminating character (13 = newline)
+    // V5+ returns the terminating character (newline by default)
     if (this.version >= 5 && ins.storeVariable !== undefined) {
-      this.storeResult(ins, result.terminator || 13);
+      const terminator = useTerminator ? result.terminator || ZSCII.NEWLINE : ZSCII.NEWLINE;
+      this.storeResult(ins, terminator);
     }
 
     return { nextPC: ins.address + ins.length };
   }
 
+  private async op_sread(ins: DecodedInstruction): Promise<ExecutionResult> {
+    // §15: sread - V1-4: sread text parse, V5+: aread text parse time routine -> (result)
+    return this.readInput(ins, true);
+  }
+
   private async op_aread(ins: DecodedInstruction): Promise<ExecutionResult> {
     // V4+ read opcode: aread text parse time routine -> (result)
-    // In V5+, byte 1 of text buffer stores actual character count
-    const textBuffer = this.getOperandValue(ins.operands[0]);
-    const parseBuffer = this.getOperandValue(ins.operands[1]);
-    // time and routine operands are for timed input (not implemented)
-
-    const maxLen = this.memory.readByte(textBuffer);
-    const result = await this.io.readLine(maxLen);
-
-    // Store text in buffer (lowercase)
-    const text = result.text.toLowerCase();
-
-    if (this.version >= 5) {
-      // V5+: byte 1 = length, text starts at byte 2
-      this.memory.writeByte(textBuffer + 1, text.length);
-      for (let i = 0; i < text.length; i++) {
-        this.memory.writeByte(textBuffer + 2 + i, text.charCodeAt(i));
-      }
-    } else {
-      // V4: text at byte 1, null-terminated
-      for (let i = 0; i < text.length; i++) {
-        this.memory.writeByte(textBuffer + 1 + i, text.charCodeAt(i));
-      }
-      this.memory.writeByte(textBuffer + 1 + text.length, 0);
-    }
-
-    // Tokenize if parse buffer provided
-    if (parseBuffer !== 0) {
-      this.tokenizer.tokenizeBuffer(textBuffer, parseBuffer);
-    }
-
-    // V5+ returns the terminating character (13 = newline)
-    if (this.version >= 5) {
-      this.storeResult(ins, 13); // Return newline as terminator
-    }
-
-    return { nextPC: ins.address + ins.length };
+    return this.readInput(ins, false);
   }
 
   private op_print_char(ins: DecodedInstruction): ExecutionResult {
@@ -1163,8 +1137,9 @@ export class Executor {
    */
   private nextPredictableRandom(): number {
     // LCG: seed = (a * seed + c) mod m
-    // Using glibc constants: a=1103515245, c=12345, m=2^31
-    this.randomSeed = ((this.randomSeed * 1103515245 + 12345) >>> 0) & 0x7fffffff;
+    // Using glibc constants
+    this.randomSeed =
+      ((this.randomSeed * RandomLCG.MULTIPLIER + RandomLCG.INCREMENT) >>> 0) & RandomLCG.MODULUS;
     return this.randomSeed;
   }
 
@@ -1328,8 +1303,7 @@ export class Executor {
     // Operand 0 is always 1 (read from keyboard)
     const timeout = ins.operands.length > 1 ? this.getOperandValue(ins.operands[1]) : 0;
     const char = await this.io.readChar(timeout);
-    this.storeResult(ins, char);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, char);
   }
 
   private op_scan_table(ins: DecodedInstruction): ExecutionResult {
@@ -1470,8 +1444,7 @@ export class Executor {
       result = (number >>> -places) & 0xffff;
     }
 
-    this.storeResult(ins, result);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, result);
   }
 
   private op_art_shift(ins: DecodedInstruction): ExecutionResult {
@@ -1487,8 +1460,7 @@ export class Executor {
       result = (number >> -places) & 0xffff;
     }
 
-    this.storeResult(ins, result);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, result);
   }
 
   private op_set_font(ins: DecodedInstruction): ExecutionResult {
@@ -1572,8 +1544,7 @@ export class Executor {
       result |= 2; // Can read (ASCII)
     }
 
-    this.storeResult(ins, result);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, result);
   }
 
   // ============================================
@@ -1586,8 +1557,7 @@ export class Executor {
    */
   private op_catch(ins: DecodedInstruction): ExecutionResult {
     const framePointer = this.stack.getFramePointer();
-    this.storeResult(ins, framePointer);
-    return { nextPC: ins.address + ins.length };
+    return this.storeAndContinue(ins, framePointer);
   }
 
   /**

@@ -1,13 +1,13 @@
 /**
  * Property Access
- * 
+ *
  * Each object has a property table containing variable-length properties.
  * The table starts with the object's short name, followed by property entries.
- * 
+ *
  * V1-3 Property Entry:
  * - 1 byte: size/number byte (bits 7-5 = size-1, bits 4-0 = property number)
  * - 1-8 bytes: property data
- * 
+ *
  * V4+ Property Entry:
  * - 1-2 bytes: size/number bytes
  *   - If bit 7 set: 2-byte format
@@ -17,18 +17,19 @@
  *     - bit 6 = 0: 1 byte data, bit 6 = 1: 2 bytes data
  *     - bits 5-0 = property number
  * - 1-64 bytes: property data
- * 
+ *
  * Properties are stored in descending order by number.
  * A size byte of 0 marks the end of the property list.
- * 
+ *
  * Reference: Z-Machine Specification §12.4
- * 
+ *
  * @module
  */
 
 import { ByteAddress, PropertyNumber, ZVersion } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
 import { ObjectTable } from './ObjectTable';
+import { ObjectError } from '../errors/ZMachineError';
 
 /**
  * Decoded property information
@@ -85,7 +86,7 @@ export class Properties {
       // V1-3: single byte header
       // Bits 7-5: size - 1 (0-7 means 1-8 bytes)
       // Bits 4-0: property number (1-31)
-      const propNum = sizeByte & 0x1F;
+      const propNum = sizeByte & 0x1f;
       const propLen = ((sizeByte >> 5) & 0x07) + 1;
       const dataAddr = address + 1;
 
@@ -101,9 +102,9 @@ export class Properties {
         // Two-byte header
         // First byte: bit 7=1, bits 5-0 = property number
         // Second byte: bits 5-0 = size (0 means 64)
-        const propNum = sizeByte & 0x3F;
+        const propNum = sizeByte & 0x3f;
         const sizeByte2 = this.memory.readByte(address + 1);
-        let propLen = sizeByte2 & 0x3F;
+        let propLen = sizeByte2 & 0x3f;
         if (propLen === 0) propLen = 64;
         const dataAddr = address + 2;
 
@@ -117,8 +118,8 @@ export class Properties {
         // One-byte header
         // Bit 6: 0 = 1 byte, 1 = 2 bytes
         // Bits 5-0: property number
-        const propNum = sizeByte & 0x3F;
-        const propLen = (sizeByte & 0x40) ? 2 : 1;
+        const propNum = sizeByte & 0x3f;
+        const propLen = sizeByte & 0x40 ? 2 : 1;
         const dataAddr = address + 1;
 
         return {
@@ -189,15 +190,15 @@ export class Properties {
     const prop = this.findProperty(objectNum, propNum);
 
     if (prop === null) {
-      throw new Error(`Property ${propNum} not found on object ${objectNum}`);
+      throw new ObjectError(`Property ${propNum} not found`, objectNum);
     }
 
     if (prop.length === 1) {
-      this.memory.writeByte(prop.address, value & 0xFF);
+      this.memory.writeByte(prop.address, value & 0xff);
     } else if (prop.length === 2) {
-      this.memory.writeWord(prop.address, value & 0xFFFF);
+      this.memory.writeWord(prop.address, value & 0xffff);
     } else {
-      throw new Error(`Cannot put_prop on property of length ${prop.length}`);
+      throw new ObjectError(`Cannot put_prop on property of length ${prop.length}`, objectNum);
     }
   }
 
@@ -229,12 +230,12 @@ export class Properties {
       // V4+: Check if this is the first or second byte of header
       if (sizeByte & 0x80) {
         // This is the second byte of a 2-byte header
-        let len = sizeByte & 0x3F;
+        let len = sizeByte & 0x3f;
         if (len === 0) len = 64;
         return len;
       } else {
         // This is a 1-byte header
-        return (sizeByte & 0x40) ? 2 : 1;
+        return sizeByte & 0x40 ? 2 : 1;
       }
     }
   }
@@ -255,7 +256,7 @@ export class Properties {
     // Find the given property and return the next one
     const prop = this.findProperty(objectNum, propNum);
     if (prop === null) {
-      throw new Error(`Property ${propNum} not found on object ${objectNum}`);
+      throw new ObjectError(`Property ${propNum} not found`, objectNum);
     }
 
     const nextProp = this.decodePropertyAt(prop.nextAddress);

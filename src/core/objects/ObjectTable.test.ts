@@ -17,8 +17,8 @@ describe('ObjectTable', () => {
 
     // Header - set in buffer before creating Memory
     view.setUint8(0x00, 3); // Version 3
-    view.setUint16(0x0A, 0x100, false); // Object table at 0x100
-    view.setUint16(0x0E, 0x8000, false); // Static memory base (for writability)
+    view.setUint16(0x0a, 0x100, false); // Object table at 0x100
+    view.setUint16(0x0e, 0x8000, false); // Static memory base (for writability)
 
     return new Memory(buffer);
   }
@@ -190,9 +190,9 @@ describe('ObjectTable', () => {
   describe('object address', () => {
     it('should reject invalid object numbers', () => {
       const table = new ObjectTable(memory, 3, 0x100);
-      expect(() => table.getObjectAddress(0)).toThrow('Invalid object number: 0');
-      expect(() => table.getObjectAddress(-1)).toThrow('Invalid object number: -1');
-      expect(() => table.getObjectAddress(256)).toThrow('Invalid object number: 256');
+      expect(() => table.getObjectAddress(0)).toThrow('Invalid object number (object: 0)');
+      expect(() => table.getObjectAddress(-1)).toThrow('Invalid object number (object: -1)');
+      expect(() => table.getObjectAddress(256)).toThrow('Invalid object number (object: 256)');
     });
   });
 
@@ -281,8 +281,8 @@ describe('Properties', () => {
 
     // Header - set in buffer before creating Memory
     view.setUint8(0x00, 3); // Version 3
-    view.setUint16(0x0A, 0x100, false); // Object table at 0x100
-    view.setUint16(0x0E, 0x8000, false); // Static memory base (for writability)
+    view.setUint16(0x0a, 0x100, false); // Object table at 0x100
+    view.setUint16(0x0e, 0x8000, false); // Static memory base (for writability)
 
     return new Memory(buffer);
   }
@@ -318,11 +318,11 @@ describe('Properties', () => {
 
     // Property 18: 2 bytes of data (size = 1, so size byte = (1 << 5) | 18 = 0x32)
     mem.writeByte(propAddr, 0x32); // Size 2, prop 18
-    mem.writeWord(propAddr + 1, 0xABCD); // Data
+    mem.writeWord(propAddr + 1, 0xabcd); // Data
     propAddr += 3;
 
     // Property 10: 1 byte of data (size = 0, so size byte = (0 << 5) | 10 = 0x0A)
-    mem.writeByte(propAddr, 0x0A); // Size 1, prop 10
+    mem.writeByte(propAddr, 0x0a); // Size 1, prop 10
     mem.writeByte(propAddr + 1, 0x42); // Data
     propAddr += 2;
 
@@ -349,7 +349,7 @@ describe('Properties', () => {
       const props = new Properties(memory, 3, objTable);
 
       const value = props.getProperty(1, 18);
-      expect(value).toBe(0xABCD);
+      expect(value).toBe(0xabcd);
     });
 
     it('should get 1-byte property', () => {
@@ -381,8 +381,8 @@ describe('Properties', () => {
       const objTable = new ObjectTable(memory, 3, 0x100);
       const props = new Properties(memory, 3, objTable);
 
-      props.putProperty(1, 10, 0xFF);
-      expect(props.getProperty(1, 10)).toBe(0xFF);
+      props.putProperty(1, 10, 0xff);
+      expect(props.getProperty(1, 10)).toBe(0xff);
     });
 
     it('should throw when putting property with length > 2', () => {
@@ -400,9 +400,7 @@ describe('Properties', () => {
       const props = new Properties(memory, 3, objTable);
 
       // Property 25 doesn't exist on object 1
-      expect(() => props.putProperty(1, 25, 0x1234)).toThrow(
-        'Property 25 not found on object 1'
-      );
+      expect(() => props.putProperty(1, 25, 0x1234)).toThrow('Property 25 not found (object: 1)');
     });
 
     it('should get first word for property with length > 2', () => {
@@ -446,9 +444,7 @@ describe('Properties', () => {
       const props = new Properties(memory, 3, objTable);
 
       // Property 25 doesn't exist on object 1
-      expect(() => props.getNextProperty(1, 25)).toThrow(
-        'Property 25 not found on object 1'
-      );
+      expect(() => props.getNextProperty(1, 25)).toThrow('Property 25 not found (object: 1)');
     });
 
     it('should return 0 for first property of object with no properties', () => {
@@ -460,8 +456,8 @@ describe('Properties', () => {
 
         // Header
         view.setUint8(0x00, 3); // Version 3
-        view.setUint16(0x0A, 0x100, false); // Object table at 0x100
-        view.setUint16(0x0E, 0x8000, false); // Static memory base
+        view.setUint16(0x0a, 0x100, false); // Object table at 0x100
+        view.setUint16(0x0e, 0x8000, false); // Static memory base
 
         return new Memory(buffer);
       })();
@@ -505,7 +501,7 @@ describe('Properties', () => {
 
       const addr = props.getPropertyAddress(1, 18);
       expect(addr).toBeGreaterThan(0);
-      expect(memory.readWord(addr)).toBe(0xABCD);
+      expect(memory.readWord(addr)).toBe(0xabcd);
     });
 
     it('should return 0 for missing property address', () => {
@@ -545,8 +541,8 @@ describe('Properties', () => {
       const view = new DataView(buffer);
 
       view.setUint8(0x00, 5); // Version 5
-      view.setUint16(0x0A, 0x100, false); // Object table
-      view.setUint16(0x0E, 0x8000, false); // Static memory base
+      view.setUint16(0x0a, 0x100, false); // Object table
+      view.setUint16(0x0e, 0x8000, false); // Static memory base
 
       return new Memory(buffer);
     }
@@ -568,8 +564,8 @@ describe('Properties', () => {
       for (let i = 0; i < 6; i++) {
         mem.writeByte(obj1Addr + i, 0);
       }
-      mem.writeWord(obj1Addr + 6, 0);  // Parent
-      mem.writeWord(obj1Addr + 8, 0);  // Sibling
+      mem.writeWord(obj1Addr + 6, 0); // Parent
+      mem.writeWord(obj1Addr + 8, 0); // Sibling
       mem.writeWord(obj1Addr + 10, 0); // Child
       mem.writeWord(obj1Addr + 12, 0x300); // Property table
 

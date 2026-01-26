@@ -135,6 +135,96 @@ export const ZWindow = {
   UPPER: 1,
 } as const;
 
+// ============================================
+// Instruction Decoding Constants
+// ============================================
+
+/**
+ * Magic bytes and masks for instruction decoding
+ *
+ * §4: Instruction encoding
+ */
+export const InstructionBytes = {
+  /** Extended opcode marker (V5+) */
+  EXTENDED_OPCODE: 0xbe,
+  /** Mask for top 2 bits (form detection) */
+  FORM_MASK: 0xc0,
+  /** Variable form indicator (top 2 bits = 11) */
+  VARIABLE_FORM: 0xc0,
+  /** Short form indicator (top 2 bits = 10) */
+  SHORT_FORM: 0x80,
+  /** Mask for opcode in long form (bottom 5 bits) */
+  LONG_OPCODE_MASK: 0x1f,
+  /** Mask for opcode in short form (bottom 4 bits) */
+  SHORT_OPCODE_MASK: 0x0f,
+  /** Bit 6 - first operand type in long form */
+  LONG_OPERAND1_BIT: 0x40,
+  /** Bit 5 - second operand type in long form / VAR indicator */
+  LONG_OPERAND2_BIT: 0x20,
+  /** VAR opcodes that use double type bytes (call_vs2, call_vn2) */
+  VAR_CALL_VS2: 0x0c,
+  VAR_CALL_VN2: 0x1a,
+  /** Branch condition bit (bit 7 of branch byte) */
+  BRANCH_CONDITION_BIT: 0x80,
+  /** Branch short form bit (bit 6 of branch byte) */
+  BRANCH_SHORT_BIT: 0x40,
+  /** Mask for short branch offset (bottom 6 bits) */
+  BRANCH_OFFSET_MASK: 0x3f,
+  /** Sign bit for 14-bit branch offset */
+  BRANCH_SIGN_BIT: 0x2000,
+  /** Value to subtract for negative 14-bit offset */
+  BRANCH_SIGN_EXTEND: 0x4000,
+  /** Text end marker (high bit set) */
+  TEXT_END_MARKER: 0x8000,
+} as const;
+
+// ============================================
+// Execution Constants
+// ============================================
+
+/**
+ * Random number generator constants (Linear Congruential Generator)
+ * Uses the classic Numerical Recipes parameters
+ */
+export const RandomLCG = {
+  /** LCG multiplier */
+  MULTIPLIER: 1103515245,
+  /** LCG increment */
+  INCREMENT: 12345,
+  /** LCG modulus mask (2^31 - 1) */
+  MODULUS: 0x7fffffff,
+} as const;
+
+/**
+ * ZSCII special character codes
+ *
+ * §3: ZSCII encoding
+ */
+export const ZSCII = {
+  /** Newline/Enter key */
+  NEWLINE: 13,
+  /** Delete/Backspace key */
+  DELETE: 8,
+  /** Escape key */
+  ESCAPE: 27,
+  /** Space character */
+  SPACE: 32,
+} as const;
+
+/**
+ * Header flag bits
+ */
+export const HeaderFlags = {
+  /** FLAGS1 bit 1: Time game (V3) */
+  FLAGS1_TIME_GAME: 0x02,
+  /** FLAGS1 bit 4: Status line not available */
+  FLAGS1_NO_STATUS: 0x10,
+  /** FLAGS1 bit 5: Screen splitting available */
+  FLAGS1_SPLIT_AVAILABLE: 0x20,
+  /** FLAGS1 bit 6: Variable-width font default */
+  FLAGS1_VARIABLE_FONT: 0x40,
+} as const;
+
 /**
  * Operand types as encoded in instruction operand type bytes
  *

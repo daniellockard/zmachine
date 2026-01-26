@@ -1,6 +1,6 @@
 {
   "name": "zmachine",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A Z-machine emulator written from scratch in TypeScript. Zero dependencies. Run Infocom text adventures in Node.js or the browser.",
   "type": "module",
   "main": "dist/index.js",

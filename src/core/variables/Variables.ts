@@ -1,19 +1,20 @@
 /**
  * Variables Module
- * 
+ *
  * Handles reading and writing Z-machine variables:
  * - Variable 0: Top of stack
  * - Variables 1-15: Local variables
  * - Variables 16-255: Global variables
- * 
+ *
  * Reference: Z-Machine Specification §4.2
- * 
+ *
  * @module
  */
 
 import { ByteAddress } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
 import { Stack } from '../cpu/Stack';
+import { VariableError } from '../errors/ZMachineError';
 
 /**
  * Variable number type
@@ -31,7 +32,7 @@ export class Variables {
 
   /**
    * Create a Variables manager
-   * 
+   *
    * @param memory - The Z-machine memory
    * @param stack - The call stack
    * @param globalsAddress - Address of the global variables table
@@ -44,13 +45,13 @@ export class Variables {
 
   /**
    * Read a variable value
-   * 
+   *
    * @param variable - Variable number (0-255)
    * @returns The variable value (16-bit)
    */
   read(variable: VariableNumber): number {
     if (variable < 0 || variable > 255) {
-      throw new Error(`Invalid variable number: ${variable}`);
+      throw new VariableError('Invalid variable number', variable);
     }
 
     if (variable === 0) {
@@ -69,13 +70,13 @@ export class Variables {
   /**
    * Read a variable value without popping from stack
    * Used for indirect reads where we need the value but shouldn't modify stack
-   * 
+   *
    * @param variable - Variable number (0-255)
    * @returns The variable value (16-bit)
    */
   peek(variable: VariableNumber): number {
     if (variable < 0 || variable > 255) {
-      throw new Error(`Invalid variable number: ${variable}`);
+      throw new VariableError('Invalid variable number', variable);
     }
 
     if (variable === 0) {
@@ -93,17 +94,17 @@ export class Variables {
 
   /**
    * Write a variable value
-   * 
+   *
    * @param variable - Variable number (0-255)
    * @param value - Value to write (16-bit)
    */
   write(variable: VariableNumber, value: number): void {
     if (variable < 0 || variable > 255) {
-      throw new Error(`Invalid variable number: ${variable}`);
+      throw new VariableError('Invalid variable number', variable);
     }
 
     // Ensure 16-bit value
-    const maskedValue = value & 0xFFFF;
+    const maskedValue = value & 0xffff;
 
     if (variable === 0) {
       // Stack variable - push to stack
@@ -122,7 +123,7 @@ export class Variables {
    * Store a result value to a variable
    * This is used for instruction store operations
    * For variable 0, it pushes (not replacing top)
-   * 
+   *
    * @param variable - Variable number (0-255)
    * @param value - Value to store (16-bit)
    */
@@ -133,7 +134,7 @@ export class Variables {
   /**
    * Load a value from a variable for operand evaluation
    * For variable 0, it pops the stack
-   * 
+   *
    * @param variable - Variable number (0-255)
    * @returns The variable value (16-bit)
    */
@@ -143,13 +144,13 @@ export class Variables {
 
   /**
    * Increment a variable
-   * 
+   *
    * @param variable - Variable number (0-255)
    */
   increment(variable: VariableNumber): void {
     const value = this.peek(variable);
-    const newValue = (value + 1) & 0xFFFF;
-    
+    const newValue = (value + 1) & 0xffff;
+
     if (variable === 0) {
       // For stack, pop old value and push new
       this.stack.pop();
@@ -161,13 +162,13 @@ export class Variables {
 
   /**
    * Decrement a variable
-   * 
+   *
    * @param variable - Variable number (0-255)
    */
   decrement(variable: VariableNumber): void {
     const value = this.peek(variable);
-    const newValue = (value - 1) & 0xFFFF;
-    
+    const newValue = (value - 1) & 0xffff;
+
     if (variable === 0) {
       // For stack, pop old value and push new
       this.stack.pop();
@@ -203,7 +204,7 @@ export class Variables {
    */
   getGlobalAddress(variable: VariableNumber): ByteAddress {
     if (!this.isGlobal(variable)) {
-      throw new Error(`Not a global variable: ${variable}`);
+      throw new VariableError('Not a global variable', variable);
     }
     return this.globalsAddress + (variable - 16) * 2;
   }

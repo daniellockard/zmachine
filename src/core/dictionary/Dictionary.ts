@@ -1,23 +1,24 @@
 /**
  * Dictionary
- * 
+ *
  * The Z-machine dictionary is used to look up words entered by the player.
  * It consists of:
  * - A list of word separator characters
  * - The dictionary entries, each containing:
  *   - Encoded word (4 bytes V1-3, 6 bytes V4+)
  *   - Game-specific data bytes
- * 
+ *
  * Dictionary entries are sorted in numerical order (treating the encoded
  * bytes as an unsigned number), enabling binary search.
- * 
+ *
  * Reference: Z-Machine Specification §13
- * 
+ *
  * @module
  */
 
 import { ByteAddress, ZVersion } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
+import { DictionaryError } from '../errors/ZMachineError';
 
 /**
  * Dictionary lookup result
@@ -87,7 +88,7 @@ export class Dictionary {
    */
   getEntryAddress(index: number): ByteAddress {
     if (index < 0 || index >= this.entryCount) {
-      throw new Error(`Invalid dictionary index: ${index}`);
+      throw new DictionaryError(`Invalid dictionary index: ${index}`);
     }
     return this.entriesStart + index * this.entryLength;
   }

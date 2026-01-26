@@ -20,8 +20,8 @@ describe('Variables', () => {
 
     // Header
     view.setUint8(0x00, 3); // Version 3
-    view.setUint16(0x0C, GLOBALS_ADDRESS, false); // Globals table
-    view.setUint16(0x0E, 0x800, false); // Static memory base (after globals table)
+    view.setUint16(0x0c, GLOBALS_ADDRESS, false); // Globals table
+    view.setUint16(0x0e, 0x800, false); // Static memory base (after globals table)
 
     return new Memory(buffer);
   }
@@ -92,8 +92,8 @@ describe('Variables', () => {
     });
 
     it('should mask to 16 bits', () => {
-      variables.write(1, 0x1FFFF);
-      expect(variables.read(1)).toBe(0xFFFF);
+      variables.write(1, 0x1ffff);
+      expect(variables.read(1)).toBe(0xffff);
     });
   });
 
@@ -109,10 +109,10 @@ describe('Variables', () => {
     });
 
     it('should access correct offsets', () => {
-      variables.write(16, 100);  // Offset 0
-      variables.write(17, 200);  // Offset 2
-      variables.write(18, 300);  // Offset 4
-      
+      variables.write(16, 100); // Offset 0
+      variables.write(17, 200); // Offset 2
+      variables.write(18, 300); // Offset 4
+
       expect(memory.readWord(GLOBALS_ADDRESS + 0)).toBe(100);
       expect(memory.readWord(GLOBALS_ADDRESS + 2)).toBe(200);
       expect(memory.readWord(GLOBALS_ADDRESS + 4)).toBe(300);
@@ -148,7 +148,7 @@ describe('Variables', () => {
     });
 
     it('should wrap on overflow', () => {
-      variables.write(16, 0xFFFF);
+      variables.write(16, 0xffff);
       variables.increment(16);
       expect(variables.read(16)).toBe(0);
     });
@@ -180,7 +180,7 @@ describe('Variables', () => {
     it('should wrap on underflow', () => {
       variables.write(16, 0);
       variables.decrement(16);
-      expect(variables.read(16)).toBe(0xFFFF);
+      expect(variables.read(16)).toBe(0xffff);
     });
   });
 
@@ -226,8 +226,8 @@ describe('Variables', () => {
     });
 
     it('should throw for invalid variable number in peek', () => {
-      expect(() => variables.peek(-1)).toThrow('Invalid variable number: -1');
-      expect(() => variables.peek(256)).toThrow('Invalid variable number: 256');
+      expect(() => variables.peek(-1)).toThrow('Invalid variable number (variable: -1)');
+      expect(() => variables.peek(256)).toThrow('Invalid variable number (variable: 256)');
     });
   });
 

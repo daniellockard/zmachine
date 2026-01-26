@@ -120,6 +120,31 @@ export class IOError extends ZMachineError {
 }
 
 /**
+ * Error with variable operations (invalid variable number)
+ */
+export class VariableError extends ZMachineError {
+  readonly variableNumber: number;
+
+  constructor(message: string, variableNumber: number) {
+    super(`${message} (variable: ${variableNumber})`);
+    this.name = 'VariableError';
+    this.variableNumber = variableNumber;
+    Object.setPrototypeOf(this, VariableError.prototype);
+  }
+}
+
+/**
+ * Error with dictionary operations
+ */
+export class DictionaryError extends ZMachineError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DictionaryError';
+    Object.setPrototypeOf(this, DictionaryError.prototype);
+  }
+}
+
+/**
  * Format an address as a hex string
  */
 export function formatAddress(address: ByteAddress): string {

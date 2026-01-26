@@ -28,6 +28,7 @@ import { Properties } from './objects/Properties';
 import { Dictionary } from './dictionary/Dictionary';
 import { Tokenizer } from './dictionary/Tokenizer';
 import { ZCharDecoder } from './text/ZCharDecoder';
+import { IOError } from './errors/ZMachineError';
 import { IOAdapter } from '../io/IOAdapter';
 
 /**
@@ -250,7 +251,7 @@ export class ZMachine {
    */
   async provideInput(_input: string): Promise<void> {
     if (this._state !== RunState.WaitingForInput) {
-      throw new Error('Not waiting for input');
+      throw new IOError('Not waiting for input');
     }
 
     // The actual input handling happens through IOAdapter.readLine()

@@ -1,21 +1,22 @@
 /**
  * Call Stack for Z-machine
- * 
+ *
  * Manages the stack of routine call frames. The Z-machine's stack is
  * external to addressable memory and consists of:
  * - A stack of call frames (one per active routine)
  * - Each frame has its own local variables and evaluation stack
- * 
+ *
  * Variable 0x00 (the "stack") pushes to/pops from the current frame's
  * evaluation stack.
- * 
+ *
  * Reference: Z-Machine Specification §6
- * 
+ *
  * @module
  */
 
 import { ByteAddress, VariableNumber, Word } from '../../types/ZMachineTypes';
 import { StackFrame } from './StackFrame';
+import { StackError } from '../errors/ZMachineError';
 
 /**
  * Snapshot of the entire call stack for save/restore
@@ -46,19 +47,19 @@ export class Stack {
 
   /**
    * Get the current (topmost) stack frame
-   * 
+   *
    * @throws Error if no frames on stack (should never happen after initialization)
    */
   get currentFrame(): StackFrame {
     if (this.frames.length === 0) {
-      throw new Error('No stack frames: call stack is empty');
+      throw new StackError('No stack frames: call stack is empty');
     }
     return this.frames[this.frames.length - 1];
   }
 
   /**
    * Push a new frame for a routine call
-   * 
+   *
    * @param returnPC - Address to return to after routine completes
    * @param storeVariable - Variable to store return value (undefined if discarded)
    * @param localCount - Number of local variables in the routine
@@ -78,13 +79,13 @@ export class Stack {
 
   /**
    * Pop the current frame (routine return)
-   * 
+   *
    * @returns The popped frame
    * @throws Error if trying to pop the last frame
    */
   popFrame(): StackFrame {
     if (this.frames.length <= 1) {
-      throw new Error('Cannot pop initial stack frame');
+      throw new StackError('Cannot pop initial stack frame');
     }
     return this.frames.pop()!;
   }
@@ -92,7 +93,7 @@ export class Stack {
   /**
    * Initialize the stack with the main routine's frame
    * Called at game start with PC pointing to main routine
-   * 
+   *
    * @param localCount - Number of locals in main routine
    */
   initialize(localCount: number): void {
@@ -127,7 +128,7 @@ export class Stack {
 
   /**
    * Get a local variable from the current frame
-   * 
+   *
    * @param index - Local variable index (0-14)
    */
   getLocal(index: number): Word {
@@ -136,7 +137,7 @@ export class Stack {
 
   /**
    * Set a local variable in the current frame
-   * 
+   *
    * @param index - Local variable index (0-14)
    * @param value - Value to set
    */
@@ -147,7 +148,7 @@ export class Stack {
   /**
    * Check if a given argument was supplied to the current routine
    * (For check_arg_count opcode)
-   * 
+   *
    * @param argNumber - Argument number (1-based)
    */
   hasArgument(argNumber: number): boolean {
@@ -159,7 +160,7 @@ export class Stack {
    */
   snapshot(): CallStackSnapshot {
     return {
-      frames: this.frames.map(frame => ({
+      frames: this.frames.map((frame) => ({
         returnPC: frame.returnPC,
         storeVariable: frame.storeVariable,
         argumentCount: frame.argumentCount,
@@ -174,7 +175,7 @@ export class Stack {
    */
   restore(snapshot: CallStackSnapshot): void {
     this.frames.length = 0;
-    
+
     for (const frameData of snapshot.frames) {
       const frame = new StackFrame(
         frameData.returnPC,
@@ -206,21 +207,21 @@ export class Stack {
   /**
    * Unwind the stack to a specific depth (for throw opcode)
    * Pops frames until we reach the target depth
-   * 
+   *
    * @param targetDepth - The frame depth to unwind to (from catch)
    * @returns The frame we unwound to (for getting return PC)
    * @throws Error if target depth is invalid
    */
   unwindTo(targetDepth: number): StackFrame {
     if (targetDepth < 1 || targetDepth > this.frames.length) {
-      throw new Error(`Invalid stack frame pointer: ${targetDepth}`);
+      throw new StackError(`Invalid stack frame pointer: ${targetDepth}`);
     }
-    
+
     // Pop frames until we reach target depth
     while (this.frames.length > targetDepth) {
       this.frames.pop();
     }
-    
+
     // Pop and return the target frame (the one we're returning from)
     return this.frames.pop()!;
   }
@@ -232,7 +233,7 @@ export class Stack {
     const snapshot = this.snapshot();
     const data: number[] = [];
     const framePointers: number[] = [];
-    
+
     for (const frame of snapshot.frames) {
       framePointers.push(data.length);
       data.push(frame.returnPC);
@@ -243,7 +244,7 @@ export class Stack {
       data.push(frame.evalStack.length);
       data.push(...frame.evalStack);
     }
-    
+
     return { data, framePointers };
   }
 
@@ -253,7 +254,7 @@ export class Stack {
   deserialize(serialized: { data: number[]; framePointers: number[] }): void {
     const { data, framePointers } = serialized;
     this.frames.length = 0;
-    
+
     for (const ptr of framePointers) {
       let i = ptr;
       const returnPC = data[i++];
@@ -270,7 +271,7 @@ export class Stack {
       for (let j = 0; j < stackLen; j++) {
         evalStack.push(data[i++]);
       }
-      
+
       const frame = new StackFrame(returnPC, storeVariable, localCount, argumentCount);
       frame.initializeLocals(locals);
       frame.restoreStack(evalStack);

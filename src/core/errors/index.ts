@@ -15,6 +15,8 @@ export {
   ObjectError,
   SaveError,
   IOError,
+  VariableError,
+  DictionaryError,
   formatAddress,
   formatByte,
   formatWord,

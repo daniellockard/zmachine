@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-01-26
+
+### Added
+- `InstructionBytes` constants for instruction decoding magic numbers (EXTENDED_OPCODE, FORM_MASK, SHORT_FORM, EXTENDED_FORM, etc.)
+- `RandomLCG` constants for LCG random number generator (MULTIPLIER, INCREMENT, MODULUS)
+- `ZSCII` constants for common character codes (NEWLINE, DELETE, ESCAPE, SPACE)
+- `HeaderFlags` constants for header flag bits (FLAGS1_TIME_GAME, FLAGS2_TRANSCRIPTING, etc.)
+- `VariableError` and `DictionaryError` custom error classes for domain-specific error handling
+- `storeAndContinue()` helper method in Executor to reduce opcode boilerplate
+- `readInput()` shared helper for sread/aread opcodes
+
+### Changed
+- Decoder.ts now uses `InstructionBytes.*` constants instead of magic numbers
+- Executor.ts now uses `RandomLCG.*`, `ZSCII.*`, and `HeaderFlags.*` constants
+- Refactored ~20 opcodes to use `storeAndContinue()` helper, reducing duplication
+- Consolidated `op_sread` and `op_aread` into shared `readInput()` implementation
+- Migrated all 35+ `throw new Error()` calls to appropriate custom error classes:
+  - Memory.ts → MemoryError
+  - Header.ts → ZMachineError
+  - AddressUtils.ts → MemoryError
+  - Stack.ts, StackFrame.ts → StackError
+  - ObjectTable.ts, Properties.ts → ObjectError
+  - Variables.ts → VariableError
+  - Dictionary.ts → DictionaryError
+  - Quetzal.ts → SaveError
+  - ZMachine.ts → IOError
+  - Executor.ts → OpcodeError
+
 ## [0.3.1] - 2026-01-26
 
 ### Added
