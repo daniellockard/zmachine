@@ -23,7 +23,7 @@ describe('ZCharDecoder', () => {
 
     // Header
     view.setUint8(0x00, 3); // Version 3
-    view.setUint16(0x0E, 0x100, false); // Static memory base
+    view.setUint16(0x0e, 0x100, false); // Static memory base
     view.setUint16(0x18, 0x40, false); // Abbreviations table at 0x40
 
     // Write Z-string if provided
@@ -41,7 +41,7 @@ describe('ZCharDecoder', () => {
         // Write word address to abbreviation table
         const abbrevTextAddr = 0x200 + abbrev.index * 0x10;
         view.setUint16(0x40 + abbrev.index * 2, abbrevTextAddr / 2, false);
-        
+
         // Write abbreviation text
         let addr = abbrevTextAddr;
         for (const word of abbrev.text) {
@@ -64,8 +64,8 @@ describe('ZCharDecoder', () => {
       const z1 = zchars[i] ?? 5; // Padding
       const z2 = zchars[i + 1] ?? 5;
       const z3 = zchars[i + 2] ?? 5;
-      let word = ((z1 & 0x1F) << 10) | ((z2 & 0x1F) << 5) | (z3 & 0x1F);
-      
+      let word = ((z1 & 0x1f) << 10) | ((z2 & 0x1f) << 5) | (z3 & 0x1f);
+
       // Set end bit on last word
       if (markEnd && i + 3 >= zchars.length) {
         word |= 0x8000;
@@ -224,11 +224,11 @@ describe('ZCharDecoder', () => {
       // Abbreviation 0: "the"
       // t=25, h=13, e=10
       const theWords = packZChars([25, 13, 10]);
-      
+
       // Main string: abbrev(1, 0) + space + "end"
       // z-char 1, index 0, then space(0), e(10), n(19), d(9)
       const mainWords = packZChars([1, 0, 0, 10, 19, 9]);
-      
+
       const memory = createTestMemory({
         zstringAddress: 0x100,
         zstringWords: mainWords,
@@ -246,11 +246,11 @@ describe('ZCharDecoder', () => {
       // Bank 2 (z-char 2): index 0 = "two"
       const oneWords = packZChars([20, 19, 10]); // o, n, e
       const twoWords = packZChars([25, 28, 20]); // t, w, o
-      
+
       // Main: abbrev(1,0), space, abbrev(2,0)
       // Note: z-char 2 starts bank 2, which is at index 32
       const mainWords = packZChars([1, 0, 0, 2, 0]);
-      
+
       const memory = createTestMemory({
         zstringAddress: 0x100,
         zstringWords: mainWords,
@@ -366,6 +366,46 @@ describe('ZCharDecoder', () => {
       const result = decoder.decode(0x100);
 
       expect(result.text).toBe('X');
+    });
+  });
+
+  describe('V1-V2 specific behavior', () => {
+    it('should decode z-char 1 as newline in V1', () => {
+      const words = packZChars([6, 1, 7]); // a, newline, b
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      // Manually set version to 1
+      memory.writeByte(0x00, 1);
+      const decoder = new ZCharDecoder(memory, 1, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('a\nb');
+    });
+
+    it('should handle V2 shift lock with z-char 2', () => {
+      // Z-char 2 in V1-2 is shift lock to A1
+      // After shift lock, z-char 6 should be 'A' (from A1)
+      const words = packZChars([2, 6, 7]); // shift-lock A1, then 'A', 'B'
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      memory.writeByte(0x00, 2);
+      const decoder = new ZCharDecoder(memory, 2, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('AB');
+    });
+
+    it('should handle V2 shift lock with z-char 3', () => {
+      // Z-char 3 in V1-2 is shift lock to A2
+      // After shift lock, z-char 8 = '0' (index 2), z-char 9 = '1' (index 3)
+      const words = packZChars([3, 8, 9]); // shift-lock A2, then '0', '1'
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      memory.writeByte(0x00, 2);
+      const decoder = new ZCharDecoder(memory, 2, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      expect(result.text).toBe('01');
     });
   });
 

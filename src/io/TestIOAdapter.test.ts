@@ -144,6 +144,16 @@ describe('TestIOAdapter', () => {
       io.splitWindow(2);
       expect(io.upperOutput).toEqual([]);
     });
+
+    it('should not clear upper output when unsplitting (lines=0)', () => {
+      io.setWindow(1);
+      io.print('Status');
+      io.setWindow(0);
+      io.splitWindow(0);
+      // Lines=0 should not clear the upper output
+      expect(io.upperOutput).toEqual(['Status']);
+      expect(io.getUpperWindowLines()).toBe(0);
+    });
   });
 
   describe('eraseWindow', () => {
@@ -185,6 +195,17 @@ describe('TestIOAdapter', () => {
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
       expect(io.getUpperWindowLines()).toBe(2); // Still split
+    });
+
+    it('should ignore unknown window numbers', () => {
+      io.print('Lower');
+      io.setWindow(1);
+      io.print('Upper');
+
+      io.eraseWindow(99); // Unknown window number - should do nothing
+
+      expect(io.output).toEqual(['Lower']);
+      expect(io.upperOutput).toEqual(['Upper']);
     });
   });
 

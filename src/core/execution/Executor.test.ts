@@ -3278,6 +3278,36 @@ describe('Executor', () => {
         const stats2 = debugExecutor.getOpcodeStats();
         expect(stats2.unknowns.get(0xbe)!.count).toBe(2);
       });
+
+      it('should limit recentPCs to 20 entries', async () => {
+        // Create executor with debug enabled
+        const debugExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          io,
+          textDecoder,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { debug: true }
+        );
+
+        // Execute more than 20 instructions
+        for (let i = 0; i < 25; i++) {
+          const ins = makeInstruction('nop', [], 1, { address: 0x1000 + i });
+          await debugExecutor.execute(ins);
+        }
+
+        const stats = debugExecutor.getOpcodeStats();
+        expect(stats.recentPCs.length).toBe(20); // Should be capped at 20
+        // First 5 PCs (0x1000-0x1004) should have been shifted out
+        expect(stats.recentPCs[0]).toBe(0x1005);
+        expect(stats.recentPCs[19]).toBe(0x1018); // 0x1000 + 24
+      });
     });
 
     describe('getOperandValue with invalid operand type', () => {
