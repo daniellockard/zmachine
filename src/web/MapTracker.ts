@@ -196,7 +196,16 @@ export class MapTracker {
    * Add a new room to the map
    */
   private addRoom(objectNum: number): void {
-    const name = this.machine?.getObjectName(objectNum) ?? `Room ${objectNum}`;
+    // Get room name from the Z-machine, with fallback if lookup fails
+    let name = `Room ${objectNum}`;
+    try {
+      const resolvedName = this.machine?.getObjectName(objectNum);
+      if (resolvedName && resolvedName.trim().length > 0) {
+        name = resolvedName;
+      }
+    } catch {
+      // Fall back to default name if object lookup fails
+    }
 
     // Calculate position based on how we got here
     let x = 0;
