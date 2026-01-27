@@ -36,6 +36,16 @@ let historyIndex = -1;
 const MAX_HISTORY = 100;
 
 /**
+ * Check if a command is new (not a duplicate of the last command)
+ */
+function isNewCommand(text: string): boolean {
+  return (
+    text.length > 0 &&
+    (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== text)
+  );
+}
+
+/**
  * Create an IO adapter that bridges the Z-machine to the DOM
  */
 function createIOAdapter(): WebIOAdapter {
@@ -159,10 +169,7 @@ function setupInputHandler(): void {
       historyIndex = -1;
 
       // Add to history (avoid duplicates) - but don't clear input, WebIOAdapter does that
-      if (
-        text &&
-        (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== text)
-      ) {
+      if (isNewCommand(text)) {
         commandHistory.push(text);
         if (commandHistory.length > MAX_HISTORY) {
           commandHistory.shift();

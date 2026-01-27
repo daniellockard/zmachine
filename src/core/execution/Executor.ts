@@ -1002,12 +1002,13 @@ export class Executor {
       // Get location object (global var 0 = var 16)
       const locationObj = this.variables.load(16);
 
-      // Get location name - decode and use result, or 'Unknown' if empty
+      // Get location name - decode and use result, or 'Unknown' if not available
       let locationName = 'Unknown';
       if (locationObj !== 0) {
         const nameInfo = this.objectTable.getShortNameAddress(locationObj);
         const result = this.textDecoder.decode(nameInfo.address);
-        if (result.text) {
+        // Use explicit null/undefined check since empty string is a valid (if unusual) name
+        if (result.text !== undefined && result.text !== null) {
           locationName = result.text;
         }
       }

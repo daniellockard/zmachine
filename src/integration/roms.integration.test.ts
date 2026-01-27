@@ -185,7 +185,9 @@ describe('ROM Integration Tests', () => {
 
                 // Game should execute some instructions
                 // Note: Some games (Borderzone, Bureaucracy) need character input early
-                // so they may run fewer instructions before waiting for input
+                // so they may run fewer instructions before waiting for input.
+                // TODO: Consider adding separate tests with higher thresholds for games
+                // known to execute more instructions (e.g., Zork1 should exceed 100 steps)
                 expect(steps).toBeGreaterThan(10);
 
                 // Game should produce some output

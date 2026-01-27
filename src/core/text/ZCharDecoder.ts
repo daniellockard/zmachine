@@ -164,8 +164,15 @@ export class ZCharDecoder {
 
       // Regular character from alphabet (z-char 6-31)
       // By this point all special z-chars (0-5, and 6 in A2) have been handled
-      // Z-chars 6-31 always produce a character, so non-null assertion is safe
-      result += getAlphabetChar(zchar, alphabet, this.version, this.customAlphabets)!;
+      // In normal operation, Z-chars 6-31 always produce a character, but we
+      // defensively handle a missing mapping in case of misconfigured tables
+      const decodedChar = getAlphabetChar(zchar, alphabet, this.version, this.customAlphabets);
+      if (decodedChar === null || decodedChar === undefined) {
+        // Fallback for invalid z-char or misconfigured alphabet: use replacement char
+        result += '\uFFFD';
+      } else {
+        result += decodedChar;
+      }
     }
 
     return result;

@@ -50,8 +50,15 @@ export class MapRenderer {
     this.container = config.container;
     this.roomWidth = config.roomWidth ?? 80;
     this.roomHeight = config.roomHeight ?? 40;
-    this.gridSpacing = config.gridSpacing ?? 120; // Must be larger than roomWidth for no overlap
+    this.gridSpacing = config.gridSpacing ?? 120;
     this.showNames = config.showNames ?? true;
+
+    // Validate that gridSpacing is larger than room dimensions to prevent overlap
+    if (this.gridSpacing <= this.roomWidth || this.gridSpacing <= this.roomHeight) {
+      throw new Error(
+        `gridSpacing (${this.gridSpacing}) must be larger than roomWidth (${this.roomWidth}) and roomHeight (${this.roomHeight}) to avoid room overlap`
+      );
+    }
 
     // Create SVG element
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

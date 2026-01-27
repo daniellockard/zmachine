@@ -27,6 +27,10 @@ export const DIRECTIONS = {
   out: { short: 'out', opposite: 'in', dx: -0.3, dy: 0 },
 } as const;
 
+/** Spiral placement constants for collision avoidance */
+const SPIRAL_ANGLE_INCREMENT = 0.5;
+const SPIRAL_RADIUS_MULTIPLIER = 0.3;
+
 export type Direction = keyof typeof DIRECTIONS;
 
 /**
@@ -212,16 +216,16 @@ export class MapTracker {
       }
     }
 
-    // Avoid overlapping rooms - but shift in a spiral pattern, not just right
+    // Avoid overlapping rooms - shift in a spiral pattern to find empty spot
     let attempts = 0;
     const originalX = x;
     const originalY = y;
     while (this.isPositionOccupied(x, y) && attempts < 20) {
       // Spiral outward to find empty spot
       attempts++;
-      const angle = attempts * 0.5;
-      x = originalX + Math.cos(angle) * attempts * 0.3;
-      y = originalY + Math.sin(angle) * attempts * 0.3;
+      const angle = attempts * SPIRAL_ANGLE_INCREMENT;
+      x = originalX + Math.cos(angle) * attempts * SPIRAL_RADIUS_MULTIPLIER;
+      y = originalY + Math.sin(angle) * attempts * SPIRAL_RADIUS_MULTIPLIER;
     }
 
     this.map.rooms.set(objectNum, {
@@ -270,14 +274,24 @@ export class MapTracker {
       let isOneWay = false;
 
       if (reverseConnection) {
+        const reverseIndex = this.map.connections.indexOf(reverseConnection);
+
         if (reverseConnection.to !== from) {
           // Inconsistent! The reverse direction goes somewhere else
-          // Mark both as one-way
+          // Mark both as one-way using immutable update
           isOneWay = true;
-          reverseConnection.oneWay = true;
-        } else {
-          // Consistent - reverse goes back to us
-          reverseConnection.oneWay = false;
+          if (reverseIndex !== -1) {
+            this.map.connections[reverseIndex] = {
+              ...reverseConnection,
+              oneWay: true,
+            };
+          }
+        } else if (reverseIndex !== -1) {
+          // Consistent - reverse goes back to us, use immutable update
+          this.map.connections[reverseIndex] = {
+            ...reverseConnection,
+            oneWay: false,
+          };
         }
       }
 
