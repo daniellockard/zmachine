@@ -24,6 +24,10 @@ export interface WebIOConfig {
   onQuit?: () => void;
   /** Optional callback when game restarts */
   onRestart?: () => void;
+  /** Optional callback when game is waiting for input */
+  onWaitingForInput?: () => void;
+  /** Optional callback before processing input - receives the command text */
+  onBeforeInput?: (text: string) => void;
 }
 
 /**
@@ -35,6 +39,8 @@ export class WebIOAdapter implements IOAdapter {
   private status?: HTMLElement;
   private onQuit?: () => void;
   private onRestart?: () => void;
+  private onWaitingForInput?: () => void;
+  private onBeforeInput?: (text: string) => void;
 
   private lineResolve?: (result: ReadLineResult) => void;
   private charResolve?: (char: number) => void;
@@ -89,6 +95,8 @@ export class WebIOAdapter implements IOAdapter {
     this.status = config.statusElement;
     this.onQuit = config.onQuit;
     this.onRestart = config.onRestart;
+    this.onWaitingForInput = config.onWaitingForInput;
+    this.onBeforeInput = config.onBeforeInput;
 
     this.setupInputHandler();
   }
@@ -98,6 +106,11 @@ export class WebIOAdapter implements IOAdapter {
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
+
+        // Notify before processing (for map tracking)
+        if (this.onBeforeInput) {
+          this.onBeforeInput(text);
+        }
 
         // Record input if recording
         if (this.isRecording) {
@@ -222,6 +235,11 @@ export class WebIOAdapter implements IOAdapter {
       // Small delay to make playback visible
       await new Promise((r) => setTimeout(r, 100));
       return { text, terminator: 13 };
+    }
+
+    // Notify that we're waiting for input (used by map tracker)
+    if (this.onWaitingForInput) {
+      this.onWaitingForInput();
     }
 
     // Show prompt

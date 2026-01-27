@@ -10,6 +10,7 @@ import { Stack } from '../cpu/Stack';
 import { Variables } from '../variables/Variables';
 import { ZCharDecoder } from '../text/ZCharDecoder';
 import { TestIOAdapter } from '../../io/TestIOAdapter';
+import { IOAdapter } from '../../io/IOAdapter';
 import { createQuetzalSave } from '../state/Quetzal';
 import {
   DecodedInstruction,
@@ -3349,6 +3350,486 @@ describe('Executor', () => {
         const result = executor.branch(ins, false);
 
         expect(result.nextPC).toBe(0x2004);
+      });
+    });
+
+    describe('IO adapter optional methods', () => {
+      // Helper to create minimal IO adapter with only required methods
+      function createMinimalIO(): IOAdapter {
+        return {
+          print: () => {},
+          printLine: () => {},
+          newLine: () => {},
+          readLine: async () => ({ text: '', terminator: 13 }),
+          readChar: async () => 0,
+          quit: () => {},
+          restart: () => {},
+          initialize: () => {},
+        } as IOAdapter;
+      }
+
+      it('should handle split_window when IO adapter lacks splitWindow', async () => {
+        // Create a minimal IO adapter without optional methods
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('split_window', [makeOperand(OperandType.SmallConstant, 5)], 2);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+
+      it('should handle set_window when IO adapter lacks setWindow', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('set_window', [makeOperand(OperandType.SmallConstant, 1)], 2);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+
+      it('should handle erase_window when IO adapter lacks eraseWindow', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('erase_window', [makeOperand(OperandType.SmallConstant, 0)], 2);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+
+      it('should handle set_cursor when IO adapter lacks setCursor', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction(
+          'set_cursor',
+          [makeOperand(OperandType.SmallConstant, 1), makeOperand(OperandType.SmallConstant, 1)],
+          3
+        );
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1003);
+      });
+
+      it('should handle get_cursor when IO adapter lacks getCursor', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        // Set up array location
+        const arrayAddr = 0x500;
+
+        const ins = makeInstruction(
+          'get_cursor',
+          [makeOperand(OperandType.LargeConstant, arrayAddr)],
+          3
+        );
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1003);
+        // Should write default values
+        expect(memory.readWord(arrayAddr)).toBe(1);
+        expect(memory.readWord(arrayAddr + 2)).toBe(1);
+      });
+
+      it('should handle input_stream when IO adapter lacks setInputStream', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('input_stream', [makeOperand(OperandType.SmallConstant, 1)], 2);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+
+      it('should handle sound_effect when IO adapter lacks soundEffect', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction(
+          'sound_effect',
+          [makeOperand(OperandType.SmallConstant, 1), makeOperand(OperandType.SmallConstant, 2)],
+          3
+        );
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1003);
+      });
+
+      it('should handle show_status when IO adapter lacks showStatusLine', async () => {
+        const minimalIO = createMinimalIO();
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          3,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('show_status', [], 1);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1001);
+      });
+    });
+
+    describe('print_obj with no name', () => {
+      it('should handle object with zero-length name', async () => {
+        // Set up object with empty name
+        const propTableAddr = 0x300;
+        const objectTable = executor['objectTable'];
+        // Mock getShortNameAddress to return 0 length
+        const origMethod = objectTable.getShortNameAddress.bind(objectTable);
+        objectTable.getShortNameAddress = (obj: number) => {
+          if (obj === 99) {
+            return { address: propTableAddr + 1, lengthBytes: 0 };
+          }
+          return origMethod(obj);
+        };
+
+        const ins = makeInstruction('print_obj', [makeOperand(OperandType.SmallConstant, 99)], 2);
+        const result = await executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+        // Should not print anything
+        expect(io.output).toEqual([]);
+
+        // Restore
+        objectTable.getShortNameAddress = origMethod;
+      });
+    });
+
+    describe('show_status with location 0', () => {
+      it('should show Unknown for location 0', async () => {
+        // Set global var 16 (location) to 0
+        variables.write(16, 0);
+
+        io.showStatusLine = (location: string) => {
+          expect(location).toBe('Unknown');
+        };
+
+        const ins = makeInstruction('show_status', [], 1);
+        await executor.execute(ins);
+      });
+
+      it('should show location name when object has name', async () => {
+        // Set global var 16 (location) to a valid object
+        variables.write(16, 1);
+
+        const objectTable = executor['objectTable'];
+        const origMethod = objectTable.getShortNameAddress.bind(objectTable);
+
+        // Mock to return a location with a name
+        objectTable.getShortNameAddress = (obj: number) => {
+          if (obj === 1) {
+            return { address: 0x400, lengthBytes: 10 };
+          }
+          return origMethod(obj);
+        };
+
+        let capturedLocation = '';
+        io.showStatusLine = (location: string) => {
+          capturedLocation = location;
+        };
+
+        const ins = makeInstruction('show_status', [], 1);
+        await executor.execute(ins);
+
+        // Should have decoded some text (not 'Unknown')
+        expect(capturedLocation).not.toBe('Unknown');
+
+        objectTable.getShortNameAddress = origMethod;
+      });
+    });
+
+    describe('call to address 0 edge cases', () => {
+      it('should return 0 without storing when no store variable on call to address 0', async () => {
+        // Call packed address 0 without store variable (call_1n doesn't store)
+        const ins = makeInstruction('call_1n', [makeOperand(OperandType.SmallConstant, 0)], 2);
+
+        const result = await executor.execute(ins);
+
+        // Should just continue without storing
+        expect(result.nextPC).toBe(0x1002);
+      });
+    });
+
+    describe('print instructions without text', () => {
+      it('should handle print without text in instruction', async () => {
+        // Create instruction without text field using makeInstruction
+        const ins = makeInstruction('print', [], 2);
+
+        const result = await executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+        // No text was printed
+      });
+
+      it('should handle print_ret without text in instruction', async () => {
+        // Set up a call frame to return from
+        stack.pushFrame(0x3000, undefined, 0, 0);
+
+        // Create instruction without text field
+        const ins = makeInstruction('print_ret', [], 2);
+
+        const result = await executor.execute(ins);
+
+        // Should still print newline and return 1
+        expect(result.nextPC).toBe(0x3000);
+        expect(io.output).toContain('\n');
+      });
+    });
+
+    describe('set_text_style without IO method', () => {
+      it('should handle set_text_style when IO lacks setTextStyle', async () => {
+        const minimalIO = {
+          print: () => {},
+          printLine: () => {},
+          newLine: () => {},
+          readLine: async () => ({ text: '', terminator: 13 }),
+          readChar: async () => 0,
+          quit: () => {},
+          restart: () => {},
+          initialize: () => {},
+        } as IOAdapter;
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction(
+          'set_text_style',
+          [makeOperand(OperandType.SmallConstant, 2)],
+          2
+        );
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+    });
+
+    describe('buffer_mode without IO method', () => {
+      it('should handle buffer_mode when IO lacks setBufferMode', async () => {
+        const minimalIO = {
+          print: () => {},
+          printLine: () => {},
+          newLine: () => {},
+          readLine: async () => ({ text: '', terminator: 13 }),
+          readChar: async () => 0,
+          quit: () => {},
+          restart: () => {},
+          initialize: () => {},
+        } as IOAdapter;
+
+        const minExecutor = new Executor(
+          memory,
+          header,
+          stack,
+          variables,
+          5,
+          minimalIO,
+          textDecoder
+        );
+
+        const ins = makeInstruction('buffer_mode', [makeOperand(OperandType.SmallConstant, 1)], 2);
+        const result = await minExecutor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+    });
+
+    describe('output_stream disable stream 3', () => {
+      it('should handle output_stream -3 to disable stream 3', async () => {
+        // First enable stream 3 with a table
+        const tableAddr = 0x500;
+        const enableIns = makeInstruction(
+          'output_stream',
+          [
+            makeOperand(OperandType.SmallConstant, 3),
+            makeOperand(OperandType.LargeConstant, tableAddr),
+          ],
+          4
+        );
+        await executor.execute(enableIns);
+
+        // Now disable it
+        // Use -3 = 0xFFFD in unsigned
+        const disableIns = makeInstruction(
+          'output_stream',
+          [makeOperand(OperandType.LargeConstant, 0xfffd)], // -3 as unsigned
+          3
+        );
+        const result = await executor.execute(disableIns);
+
+        expect(result.nextPC).toBe(0x1003);
+      });
+    });
+
+    describe('throw without store variable', () => {
+      it('should handle throw when frame has no store variable', async () => {
+        // Push a frame without store variable
+        stack.pushFrame(0x3000, undefined, 0, 0);
+        const framePointer = stack.depth;
+
+        const ins = makeInstruction(
+          'throw',
+          [
+            makeOperand(OperandType.SmallConstant, 42),
+            makeOperand(OperandType.SmallConstant, framePointer),
+          ],
+          3
+        );
+
+        const result = await executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x3000);
+        // Value not stored anywhere since frame has no store variable
+      });
+    });
+
+    describe('output_stream disable non-stream-3', () => {
+      it('should handle output_stream -1 to disable stream 1', async () => {
+        // Use -1 = 0xFFFF in unsigned
+        const disableIns = makeInstruction(
+          'output_stream',
+          [makeOperand(OperandType.LargeConstant, 0xffff)], // -1 as unsigned
+          3
+        );
+        const result = await executor.execute(disableIns);
+
+        expect(result.nextPC).toBe(0x1003);
+      });
+
+      it('should handle output_stream -2 to disable stream 2', async () => {
+        // Use -2 = 0xFFFE in unsigned
+        const disableIns = makeInstruction(
+          'output_stream',
+          [makeOperand(OperandType.LargeConstant, 0xfffe)], // -2 as unsigned
+          3
+        );
+        const result = await executor.execute(disableIns);
+
+        expect(result.nextPC).toBe(0x1003);
+      });
+
+      it('should handle output_stream 0 (no-op)', async () => {
+        // Stream 0 does nothing - neither enables nor disables
+        const ins = makeInstruction(
+          'output_stream',
+          [makeOperand(OperandType.SmallConstant, 0)],
+          2
+        );
+        const result = await executor.execute(ins);
+
+        expect(result.nextPC).toBe(0x1002);
+      });
+    });
+
+    describe('print with stream 1 disabled', () => {
+      it('should not print when stream 1 is disabled', async () => {
+        // Disable stream 1
+        const disableIns = makeInstruction(
+          'output_stream',
+          [makeOperand(OperandType.LargeConstant, 0xffff)], // -1 as unsigned
+          3
+        );
+        await executor.execute(disableIns);
+
+        // Clear any previous output
+        io.output.length = 0;
+
+        // Now print something
+        const printIns = makeInstruction('print', [], 2, { text: 'Hello' });
+        const result = await executor.execute(printIns);
+
+        expect(result.nextPC).toBe(0x1002);
+        // Stream 1 is disabled, so nothing should be printed
+        expect(io.output).toEqual([]);
+      });
+    });
+
+    describe('storeResult with no store variable', () => {
+      it('should do nothing when instruction has no store variable', () => {
+        // Create instruction without storeVariable
+        const ins = makeInstruction('add', [], 2); // No storeVariable
+
+        // Call storeResult directly - should not throw
+        executor.storeResult(ins, 42);
+
+        // No error means success - the method silently ignores instructions without store
       });
     });
   });

@@ -346,21 +346,14 @@ export class Decoder {
 
     // Read inline text if instruction has text
     if (opcodeInfo?.hasText) {
-      if (this.textDecoder) {
-        const result = this.textDecoder(address + offset);
-        instruction.text = result.text;
-        offset += result.bytesConsumed;
-      } else {
-        // No text decoder yet - skip for now, will need to calculate length differently
-        // For now, scan for end marker (high bit set on last word)
-        const textStart = offset;
-        while (true) {
-          const word = this.memory.readWord(address + offset);
-          offset += 2;
-          if (word & InstructionBytes.TEXT_END_MARKER) break; // High bit marks end of string
-        }
-        instruction.text = `[text at 0x${(address + textStart).toString(16)}]`;
+      if (!this.textDecoder) {
+        throw new Error(
+          'Text decoder not set - call setTextDecoder before decoding print instructions'
+        );
       }
+      const result = this.textDecoder(address + offset);
+      instruction.text = result.text;
+      offset += result.bytesConsumed;
     }
 
     instruction.length = offset;

@@ -421,4 +421,36 @@ describe('ZCharDecoder', () => {
       expect(result.bytesConsumed).toBe(2);
     });
   });
+
+  describe('edge cases', () => {
+    it('should handle truncated abbreviation gracefully', () => {
+      // In V3, z-char 1 is abbreviation and uses next z-char (or 0 if at end)
+      // With our simplified implementation, it just uses 0 for missing z-chars
+      const words = packZChars([6, 1]); // 'a', then abbreviation marker (pads to [6, 1, 5])
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      const decoder = new ZCharDecoder(memory, 3, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      // 'a' + abbreviation expansion (uses z-char 5 as the abbreviation index)
+      // Just verify no crash and 'a' is decoded
+      expect(result.text.startsWith('a')).toBe(true);
+    });
+
+    it('should handle escape sequence with missing z-chars', () => {
+      // Z-char 6 in A2 needs 2 more z-chars - now uses 0 for missing values
+      const words = packZChars([5, 6, 10]); // shift to A2, escape, one z-char
+      const memory = createTestMemory({ zstringAddress: 0x100, zstringWords: words });
+      const decoder = new ZCharDecoder(memory, 3, 0x40);
+
+      const result = decoder.decode(0x100);
+
+      // z-char 5 shifts to A2
+      // z-char 6 in A2 is escape: uses high=10, low=undefined->0
+      // ZSCII = (10 << 5) | 0 = 320, which maps to a character
+      // Then the escape continues, and nothing else is in the string
+      // Just verify no crash and we get some output
+      expect(result.bytesConsumed).toBe(2);
+    });
+  });
 });
