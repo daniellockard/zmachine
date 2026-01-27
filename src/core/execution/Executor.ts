@@ -207,6 +207,16 @@ export class Executor {
     try {
       return await handler(instruction);
     } catch (error) {
+      // Rethrow I/O errors so they can be properly handled by the caller
+      // (e.g., "No line input available" needs to stop execution)
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message.includes('No line input available') ||
+        message.includes('No character input available')
+      ) {
+        throw error;
+      }
+      // Other errors (like division by zero) are returned in result
       return {
         nextPC,
         error: `Error executing ${instruction.opcodeName}: ${error}`,
@@ -992,12 +1002,12 @@ export class Executor {
       // Get location object (global var 0 = var 16)
       const locationObj = this.variables.load(16);
 
-      // Get location name
+      // Get location name - decode and use result, or 'Unknown' if empty
       let locationName = 'Unknown';
       if (locationObj !== 0) {
         const nameInfo = this.objectTable.getShortNameAddress(locationObj);
-        if (nameInfo.lengthBytes > 0) {
-          const result = this.textDecoder.decode(nameInfo.address);
+        const result = this.textDecoder.decode(nameInfo.address);
+        if (result.text) {
           locationName = result.text;
         }
       }

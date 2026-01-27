@@ -1,27 +1,23 @@
 /**
  * Z-Character Decoder
- * 
+ *
  * Decodes Z-encoded strings from memory into Unicode text.
- * 
+ *
  * Z-strings are packed 3 Z-characters per 2-byte word:
  * - Bits 14-10: First Z-character
  * - Bits 9-5: Second Z-character
  * - Bits 4-0: Third Z-character
  * - Bit 15: End of string marker
- * 
+ *
  * Reference: Z-Machine Specification §3
- * 
+ *
  * @module
  */
 
 import { ByteAddress, ZVersion } from '../../types/ZMachineTypes';
 import { Memory } from '../memory/Memory';
 import { zsciiToUnicode } from './ZSCII';
-import {
-  getAlphabetChar,
-  getShiftedAlphabet,
-  getAbbreviationIndex,
-} from './Alphabet';
+import { getAlphabetChar, getShiftedAlphabet, getAbbreviationIndex } from './Alphabet';
 
 /**
  * Result of decoding a Z-string
@@ -42,11 +38,7 @@ export class ZCharDecoder {
   private readonly abbreviationsAddress: ByteAddress;
   private customAlphabets?: [string, string, string];
 
-  constructor(
-    memory: Memory,
-    version: ZVersion,
-    abbreviationsAddress: ByteAddress
-  ) {
+  constructor(memory: Memory, version: ZVersion, abbreviationsAddress: ByteAddress) {
     this.memory = memory;
     this.version = version;
     this.abbreviationsAddress = abbreviationsAddress;
@@ -61,7 +53,7 @@ export class ZCharDecoder {
 
   /**
    * Decode a Z-string at the given address
-   * 
+   *
    * @param address - Start address of the Z-string
    * @returns Decoded text and number of bytes consumed
    */
@@ -87,9 +79,9 @@ export class ZCharDecoder {
       offset += 2;
 
       // Extract 3 Z-characters from the word
-      chars.push((word >> 10) & 0x1F);
-      chars.push((word >> 5) & 0x1F);
-      chars.push(word & 0x1F);
+      chars.push((word >> 10) & 0x1f);
+      chars.push((word >> 5) & 0x1f);
+      chars.push(word & 0x1f);
 
       // High bit marks end of string
       if (word & 0x8000) {
@@ -138,19 +130,19 @@ export class ZCharDecoder {
 
       // Z-chars 2-3: abbreviations (V3+) or shifts (V1-2)
       if (zchar === 2 || zchar === 3) {
-        if (this.version >= 3 && !preventAbbreviation && i < zchars.length) {
-          // Abbreviation
-          const nextZchar = zchars[i];
-          i++;
-          result += this.expandAbbreviation(zchar, nextZchar);
-        } else if (this.version <= 2) {
+        if (this.version <= 2) {
           // V1-2 shift lock
           if (zchar === 2) {
             currentAlphabet = getShiftedAlphabet(currentAlphabet, 4, this.version);
           } else {
             currentAlphabet = getShiftedAlphabet(currentAlphabet, 5, this.version);
           }
+        } else if (!preventAbbreviation) {
+          // V3+ Abbreviation
+          const nextZchar = zchars[i++];
+          result += this.expandAbbreviation(zchar, nextZchar);
         }
+        // V3+ with preventAbbreviation: ignore the z-char
         continue;
       }
 
@@ -162,21 +154,18 @@ export class ZCharDecoder {
 
       // Z-char 6 in A2: 10-bit ZSCII escape
       if (alphabet === 2 && zchar === 6) {
-        if (i + 1 < zchars.length) {
-          const high = zchars[i];
-          const low = zchars[i + 1];
-          i += 2;
-          const zsciiCode = (high << 5) | low;
-          result += zsciiToUnicode(zsciiCode);
-        }
+        // Need 2 more z-chars for the 10-bit code
+        const high = zchars[i++];
+        const low = zchars[i++];
+        const zsciiCode = (high << 5) | low;
+        result += zsciiToUnicode(zsciiCode);
         continue;
       }
 
-      // Regular character from alphabet
-      const char = getAlphabetChar(zchar, alphabet, this.version, this.customAlphabets);
-      if (char !== null) {
-        result += char;
-      }
+      // Regular character from alphabet (z-char 6-31)
+      // By this point all special z-chars (0-5, and 6 in A2) have been handled
+      // Z-chars 6-31 always produce a character, so non-null assertion is safe
+      result += getAlphabetChar(zchar, alphabet, this.version, this.customAlphabets)!;
     }
 
     return result;
@@ -187,14 +176,14 @@ export class ZCharDecoder {
    */
   private expandAbbreviation(prefixChar: number, indexChar: number): string {
     const abbrevIndex = getAbbreviationIndex(prefixChar, indexChar);
-    
+
     // Abbreviation table contains word addresses
     const tableOffset = abbrevIndex * 2;
     const wordAddress = this.memory.readWord(this.abbreviationsAddress + tableOffset);
-    
+
     // Convert word address to byte address
     const byteAddress = wordAddress * 2;
-    
+
     // Decode the abbreviation (prevent nested abbreviations)
     const zchars = this.extractZChars(byteAddress);
     return this.zcharsToText(zchars.chars, true);

@@ -247,6 +247,22 @@ describe('ObjectTable', () => {
       table.insertObject(2, 1);
       expect(table.getChild(1)).toBe(2);
     });
+
+    it('should handle remove when object not in sibling chain (corrupted tree)', () => {
+      const table = new ObjectTable(memory, 3, 0x100);
+
+      // Manually corrupt the sibling chain by setting object 4's parent to 1
+      // but not putting it in the actual sibling chain
+      table.setParent(4, 1);
+
+      // Now try to remove object 4 from parent
+      // The loop will traverse but won't find object 4 in the sibling chain
+      table.removeFromParent(4);
+
+      // Should still clear parent and sibling even if not found in chain
+      expect(table.getParent(4)).toBe(0);
+      expect(table.getSibling(4)).toBe(0);
+    });
   });
 
   describe('property table', () => {

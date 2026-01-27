@@ -28,7 +28,7 @@ describe('ZMachineError', () => {
 
   describe('MemoryError', () => {
     it('should format address in message', () => {
-      const error = new MemoryError('Read failed', 0x1234);
+      const error = new MemoryError('Read failed', 0x1234, 'read');
       expect(error.message).toBe('Read failed at address 0x1234');
       expect(error.name).toBe('MemoryError');
       expect(error.address).toBe(0x1234);
@@ -36,7 +36,7 @@ describe('ZMachineError', () => {
     });
 
     it('should pad short addresses', () => {
-      const error = new MemoryError('Access error', 0x12);
+      const error = new MemoryError('Access error', 0x12, 'write');
       expect(error.message).toBe('Access error at address 0x0012');
     });
   });

@@ -31,41 +31,61 @@
       <button id="btn-download-recording" title="Download Recording" disabled>💾 Save</button>
       <button id="btn-playback" title="Load & Play Recording (Ctrl+P)">▶️ Playback</button>
       <span class="toolbar-separator"></span>
+      <button id="btn-map" title="Toggle Map (Ctrl+M)">🗺️ Map</button>
       <button id="btn-help" title="Show Help (F1)">❓ Help</button>
     </div>
 
-    <!-- Main Game Output -->
-    <main id="output" class="output"></main>
+    <!-- Game Layout (main + map panel) -->
+    <div id="game-layout" class="game-layout">
+      <!-- Main Game Area -->
+      <div class="game-main">
+        <!-- Main Game Output -->
+        <main id="output" class="output"></main>
 
-    <!-- Quick Commands Bar (Mobile-friendly) -->
-    <div id="quick-commands" class="quick-commands hidden">
-      <button data-cmd="look">Look</button>
-      <button data-cmd="inventory">Inv</button>
-      <button data-cmd="north">N</button>
-      <button data-cmd="south">S</button>
-      <button data-cmd="east">E</button>
-      <button data-cmd="west">W</button>
-      <button data-cmd="up">Up</button>
-      <button data-cmd="down">Down</button>
-      <button data-cmd="take">Take</button>
-      <button data-cmd="drop">Drop</button>
-      <button data-cmd="undo">Undo</button>
-      <button data-cmd="save">Save</button>
+        <!-- Quick Commands Bar (Mobile-friendly) -->
+        <div id="quick-commands" class="quick-commands hidden">
+          <button data-cmd="look">Look</button>
+          <button data-cmd="inventory">Inv</button>
+          <button data-cmd="north">N</button>
+          <button data-cmd="south">S</button>
+          <button data-cmd="east">E</button>
+          <button data-cmd="west">W</button>
+          <button data-cmd="up">Up</button>
+          <button data-cmd="down">Down</button>
+          <button data-cmd="take">Take</button>
+          <button data-cmd="drop">Drop</button>
+          <button data-cmd="undo">Undo</button>
+          <button data-cmd="save">Save</button>
+        </div>
+
+        <!-- Input Area -->
+        <footer class="input-area">
+          <span class="prompt">&gt;</span>
+          <input 
+            type="text" 
+            id="input" 
+            class="input" 
+            placeholder="Type a command..." 
+            autocomplete="off"
+            spellcheck="false"
+            disabled
+          >
+        </footer>
+      </div>
+
+      <!-- Map Panel -->
+      <div id="map-panel" class="map-panel hidden">
+        <div class="map-header">
+          <h3>🗺️ Map</h3>
+          <div class="map-controls">
+            <button id="btn-map-center" title="Center on current room">⊙</button>
+            <button id="btn-map-reset" title="Reset view">↺</button>
+            <button id="btn-map-export" title="Export map">📥</button>
+          </div>
+        </div>
+        <div id="map-container" class="map-container"></div>
+      </div>
     </div>
-
-    <!-- Input Area -->
-    <footer class="input-area">
-      <span class="prompt">&gt;</span>
-      <input 
-        type="text" 
-        id="input" 
-        class="input" 
-        placeholder="Type a command..." 
-        autocomplete="off"
-        spellcheck="false"
-        disabled
-      >
-    </footer>
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal hidden">
@@ -78,6 +98,7 @@
           <tr><td><kbd>Ctrl+T</kbd></td><td>Toggle transcript</td></tr>
           <tr><td><kbd>Ctrl+D</kbd></td><td>Download transcript</td></tr>
           <tr><td><kbd>Ctrl+R</kbd></td><td>Toggle recording</td></tr>
+          <tr><td><kbd>Ctrl+M</kbd></td><td>Toggle map</td></tr>
           <tr><td><kbd>Ctrl+P</kbd></td><td>Load playback file</td></tr>
           <tr><td><kbd>F1</kbd></td><td>Show this help</td></tr>
           <tr><td><kbd>Escape</kbd></td><td>Close dialogs</td></tr>

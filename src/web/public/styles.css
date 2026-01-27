@@ -31,7 +31,7 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   position: relative;
 }
@@ -495,3 +495,158 @@ kbd {
 .modal-content .file-button {
   margin-top: 16px;
 }
+
+/* ============================================================================
+   Map Panel
+   ============================================================================ */
+
+.game-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.game-layout.map-visible {
+  gap: 0;
+}
+
+.game-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.map-panel {
+  width: 450px;
+  background: var(--bg-color);
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.map-panel.hidden {
+  display: none;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--status-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.map-header h3 {
+  font-size: 0.875rem;
+  color: var(--status-text);
+  margin: 0;
+}
+
+.map-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.map-controls button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.map-controls button:hover {
+  background: var(--border);
+  color: var(--text-color);
+}
+
+.map-container {
+  flex: 1;
+  overflow: hidden;
+  background: #050505;
+}
+
+.map-svg {
+  cursor: grab;
+}
+
+.map-svg:active {
+  cursor: grabbing;
+}
+
+/* Room styles */
+.room-current {
+  fill: var(--status-bg);
+  stroke: var(--text-color);
+  stroke-width: 2;
+}
+
+.room-visited {
+  fill: #1a1a1a;
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+
+.room-unvisited {
+  fill: #0d0d0d;
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 4 2;
+}
+
+.room-name {
+  fill: var(--text-color);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  pointer-events: none;
+}
+
+.room-current + .room-name {
+  fill: var(--text-color);
+  font-weight: bold;
+}
+
+/* Connection styles */
+.connection {
+  stroke: var(--text-dim);
+  stroke-width: 1.5;
+}
+
+.connection-oneway {
+  stroke: #cc6666;  /* Red-ish to indicate danger/confusion */
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+
+.connection-label {
+  fill: var(--text-dim);
+  font-size: 8px;
+  font-family: var(--font-mono);
+  pointer-events: none;
+}
+
+/* Map toggle button in toolbar */
+.toolbar button.active {
+  background: var(--status-bg);
+  color: var(--text-color);
+}
+
+/* Responsive: stack map below on narrow screens */
+@media (max-width: 768px) {
+  .game-layout {
+    flex-direction: column;
+  }
+  
+  .map-panel {
+    width: 100%;
+    height: 200px;
+    border-left: none;
+    border-top: 2px solid var(--border);
+  }
+}
+

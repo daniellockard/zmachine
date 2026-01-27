@@ -1,10 +1,10 @@
 /**
  * Dynamic integration tests for all ROMs in the roms directory
- * 
+ *
  * This test harness automatically discovers and tests any Z-machine ROM files
  * placed in the roms/ directory. If the directory doesn't exist or is empty,
  * tests are skipped gracefully.
- * 
+ *
  * To run these tests:
  * 1. Create a roms/ directory in the project root
  * 2. Add .z1, .z2, .z3, .z4, .z5, .z6, .z7, or .z8 files
@@ -45,10 +45,11 @@ function discoverRoms(): RomFile[] {
     const ext = path.extname(file).toLowerCase();
     if (Z_EXTENSIONS.includes(ext)) {
       const version = parseInt(ext.slice(2), 10);
-      const name = path.basename(file, ext)
+      const name = path
+        .basename(file, ext)
         .replace(/-r\d+.*$/, '') // Remove revision info
-        .replace(/-/g, ' ')      // Replace dashes with spaces
-        .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
+        .replace(/-/g, ' ') // Replace dashes with spaces
+        .replace(/^\w/, (c) => c.toUpperCase()); // Capitalize first letter
 
       roms.push({
         filename: file,
@@ -71,10 +72,7 @@ function discoverRoms(): RomFile[] {
  */
 function loadRom(romPath: string): ArrayBuffer {
   const storyData = fs.readFileSync(romPath);
-  return storyData.buffer.slice(
-    storyData.byteOffset,
-    storyData.byteOffset + storyData.byteLength
-  );
+  return storyData.buffer.slice(storyData.byteOffset, storyData.byteOffset + storyData.byteLength);
 }
 
 /**
@@ -94,7 +92,7 @@ async function runUntilInput(
       steps++;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('No line input available') || msg.includes('No char input')) {
+      if (msg.includes('No line input available') || msg.includes('No character input available')) {
         // Expected - game is waiting for input
         break;
       }
@@ -166,29 +164,35 @@ describe('ROM Integration Tests', () => {
       } else {
         describe('Execution', () => {
           for (const rom of roms) {
-            it(`should run ${rom.name} and produce output`, async () => {
-              const buffer = loadRom(rom.path);
-              const io = new TestIOAdapter();
-              io.queueLineInput('look');
+            it(
+              `should run ${rom.name} and produce output`,
+              async () => {
+                const buffer = loadRom(rom.path);
+                const io = new TestIOAdapter();
+                io.queueLineInput('look');
 
-              const zm = ZMachine.load(buffer, io);
-              
-              // V5+ games may need more steps
-              const maxSteps = version >= 5 ? 500000 : 100000;
-              const { steps, output, error } = await runUntilInput(zm, io, maxSteps);
+                const zm = ZMachine.load(buffer, io);
 
-              // Report any error but still check we got some execution
-              if (error) {
-                // eslint-disable-next-line no-console
-                console.warn(`  ${rom.name}: Error after ${steps} steps: ${error}`);
-              }
+                // V5+ games may need more steps
+                const maxSteps = version >= 5 ? 500000 : 100000;
+                const { steps, output, error } = await runUntilInput(zm, io, maxSteps);
 
-              // Game should execute some instructions
-              expect(steps).toBeGreaterThan(100);
-              
-              // Game should produce some output
-              expect(output.length).toBeGreaterThan(0);
-            }, version >= 5 ? 120000 : 60000);
+                // Report any error but still check we got some execution
+                if (error) {
+                  // eslint-disable-next-line no-console
+                  console.warn(`  ${rom.name}: Error after ${steps} steps: ${error}`);
+                }
+
+                // Game should execute some instructions
+                // Note: Some games (Borderzone, Bureaucracy) need character input early
+                // so they may run fewer instructions before waiting for input
+                expect(steps).toBeGreaterThan(10);
+
+                // Game should produce some output
+                expect(output.length).toBeGreaterThan(0);
+              },
+              version >= 5 ? 120000 : 60000
+            );
           }
         });
       }
@@ -203,7 +207,7 @@ describe('ROM Test Summary', () => {
     for (const [version, roms] of romsByVersion) {
       versionCounts.push(`V${version}: ${roms.length}`);
     }
-    
+
     if (allRoms.length > 0) {
       // eslint-disable-next-line no-console
       console.log(`\nROM Test Summary: ${allRoms.length} total (${versionCounts.join(', ')})`);
@@ -211,7 +215,7 @@ describe('ROM Test Summary', () => {
       // eslint-disable-next-line no-console
       console.log('\nNo ROMs found. Add .z1-.z8 files to roms/ directory to test.');
     }
-    
+
     expect(true).toBe(true);
   });
 });
