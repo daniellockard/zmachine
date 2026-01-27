@@ -1,6 +1,6 @@
 /**
  * Tests for Web I/O Adapter
- * 
+ *
  * Tests the browser-based I/O adapter using jsdom environment.
  * @vitest-environment jsdom
  */
@@ -31,7 +31,7 @@ describe('WebIOAdapter', () => {
     document.body.appendChild(output);
     document.body.appendChild(input);
     document.body.appendChild(status);
-    
+
     adapter = createAdapter();
   });
 
@@ -47,6 +47,17 @@ describe('WebIOAdapter', () => {
     it('should initialize with version', () => {
       adapter.initialize(5);
       expect(output.innerHTML).toBe('');
+    });
+
+    it('should return current version', () => {
+      adapter.initialize(5);
+      expect(adapter.getVersion()).toBe(5);
+    });
+
+    it('should return upper window line count', () => {
+      adapter.initialize(5);
+      adapter.splitWindow(3);
+      expect(adapter.getUpperWindowLines()).toBe(3);
     });
 
     it('should call onQuit callback', () => {
@@ -312,11 +323,11 @@ describe('WebIOAdapter', () => {
     it('should resolve readLine on Enter key', async () => {
       const promise = adapter.readLine(80);
       input.value = 'test input';
-      
+
       // Simulate Enter key
       const event = new KeyboardEvent('keydown', { key: 'Enter' });
       input.dispatchEvent(event);
-      
+
       const result = await promise;
       expect(result.text).toBe('test input');
       expect(result.terminator).toBe(13);
@@ -374,10 +385,10 @@ describe('WebIOAdapter', () => {
 
     it('should save data with file download', async () => {
       const appendSpy = vi.spyOn(document.body, 'appendChild');
-      
+
       const data = new Uint8Array([1, 2, 3, 4, 5]);
       const result = await adapter.save(data);
-      
+
       expect(result).toBe(true);
       expect(URL.createObjectURL).toHaveBeenCalled();
       expect(appendSpy).toHaveBeenCalled();
@@ -392,7 +403,9 @@ describe('WebIOAdapter', () => {
         0: mockFile,
         length: 1,
         item: (): File => mockFile,
-        [Symbol.iterator]: function* (): Generator<File> { yield mockFile; },
+        [Symbol.iterator]: function* (): Generator<File> {
+          yield mockFile;
+        },
       } as unknown as FileList;
 
       let capturedOnchange: (() => Promise<void>) | null = null;
@@ -402,17 +415,21 @@ describe('WebIOAdapter', () => {
         if (tag === 'input') {
           Object.defineProperty(el, 'files', { get: () => mockFileList });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => Promise<void>) => { capturedOnchange = fn; },
+            set: (fn: () => Promise<void>) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
-            setTimeout(() => { if (capturedOnchange) capturedOnchange(); }, 0);
+            setTimeout(() => {
+              if (capturedOnchange) capturedOnchange();
+            }, 0);
           };
         }
         return el;
       });
 
       const result = await adapter.restore();
-      
+
       // File loading in jsdom may not work exactly like browser,
       // but we're exercising the code path - null means the file read failed
       expect(result === null || result instanceof Uint8Array).toBe(true);
@@ -430,9 +447,16 @@ describe('WebIOAdapter', () => {
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
         if (tag === 'input') {
-          Object.defineProperty(el, 'files', { get: (): { length: number; item: () => null } => ({ length: 0, item: (): null => null }) });
+          Object.defineProperty(el, 'files', {
+            get: (): { length: number; item: () => null } => ({
+              length: 0,
+              item: (): null => null,
+            }),
+          });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => void) => { capturedOnchange = fn; },
+            set: (fn: () => void) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
             if (capturedOnchange) capturedOnchange();
@@ -442,7 +466,7 @@ describe('WebIOAdapter', () => {
       });
 
       const result = await adapter.restore();
-      
+
       expect(result).not.toBeNull();
       expect(result).toBeInstanceOf(Uint8Array);
       expect(output.textContent).toContain('[Game restored from backup]');
@@ -458,9 +482,16 @@ describe('WebIOAdapter', () => {
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
         if (tag === 'input') {
-          Object.defineProperty(el, 'files', { get: (): { length: number; item: () => null } => ({ length: 0, item: (): null => null }) });
+          Object.defineProperty(el, 'files', {
+            get: (): { length: number; item: () => null } => ({
+              length: 0,
+              item: (): null => null,
+            }),
+          });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => void) => { capturedOnchange = fn; },
+            set: (fn: () => void) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
             if (capturedOnchange) capturedOnchange();
@@ -470,7 +501,7 @@ describe('WebIOAdapter', () => {
       });
 
       const result = await adapter.restore();
-      
+
       expect(result).toBeNull();
       expect(output.textContent).toContain('[No saved game found]');
     });
@@ -502,7 +533,7 @@ describe('WebIOAdapter', () => {
         destination: {},
         currentTime: 0,
       };
-      
+
       // Use a class for vitest v4 compatibility
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).AudioContext = class MockAudioContext {
@@ -511,15 +542,15 @@ describe('WebIOAdapter', () => {
         destination = mockContext.destination;
         currentTime = mockContext.currentTime;
       };
-      
+
       // Create new adapter after mocking AudioContext
       const testAdapter = createAdapter();
       testAdapter.soundEffect(1, 2, 255); // high beep
-      
+
       expect(mockContext.createOscillator).toHaveBeenCalled();
       expect(mockOscillator.frequency.value).toBe(800);
       expect(mockOscillator.start).toHaveBeenCalled();
-      
+
       testAdapter.soundEffect(2, 2, 4); // low beep with specific volume
       expect(mockOscillator.frequency.value).toBe(400);
     });
@@ -563,11 +594,11 @@ describe('WebIOAdapter', () => {
       // jsdom doesn't have URL.createObjectURL, stub it
       URL.createObjectURL = vi.fn().mockReturnValue('blob:test');
       URL.revokeObjectURL = vi.fn();
-      
+
       adapter.setOutputStream(2, true);
       adapter.print('Transcript text');
       adapter.downloadTranscript();
-      
+
       expect(URL.createObjectURL).toHaveBeenCalled();
       expect(output.textContent).toContain('[Transcript downloaded]');
     });
@@ -599,7 +630,7 @@ describe('WebIOAdapter', () => {
       input.value = 'go north';
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
       await promise;
-      
+
       const recorded = adapter.getRecordedInputs();
       expect(recorded).toContain('go north');
     });
@@ -608,10 +639,10 @@ describe('WebIOAdapter', () => {
       // jsdom doesn't have URL.createObjectURL, stub it
       URL.createObjectURL = vi.fn().mockReturnValue('blob:test');
       URL.revokeObjectURL = vi.fn();
-      
+
       adapter.startRecording();
       adapter.downloadRecording();
-      
+
       expect(URL.createObjectURL).toHaveBeenCalled();
       expect(output.textContent).toContain('[Recording downloaded]');
     });
@@ -624,12 +655,12 @@ describe('WebIOAdapter', () => {
 
     it('should auto-play commands during readLine in playback mode', async () => {
       adapter.loadPlayback(['go west', 'take sword']);
-      
+
       // First readLine should auto-return the first command
       const result1 = await adapter.readLine(80);
       expect(result1.text).toBe('go west');
       expect(adapter.getPlaybackRemaining()).toBe(1);
-      
+
       // Second readLine should auto-return the second command
       const result2 = await adapter.readLine(80);
       expect(result2.text).toBe('take sword');
@@ -650,7 +681,9 @@ describe('WebIOAdapter', () => {
         0: mockFile,
         length: 1,
         item: (): File => mockFile,
-        [Symbol.iterator]: function* (): Generator<File> { yield mockFile; },
+        [Symbol.iterator]: function* (): Generator<File> {
+          yield mockFile;
+        },
       } as unknown as FileList;
 
       let capturedOnchange: (() => Promise<void>) | null = null;
@@ -660,19 +693,23 @@ describe('WebIOAdapter', () => {
         if (tag === 'input') {
           Object.defineProperty(el, 'files', { get: () => mockFileList });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => Promise<void>) => { capturedOnchange = fn; },
+            set: (fn: () => Promise<void>) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
             // Wait a tick then call onchange
-            setTimeout(() => { if (capturedOnchange) capturedOnchange(); }, 0);
+            setTimeout(() => {
+              if (capturedOnchange) capturedOnchange();
+            }, 0);
           };
         }
         return el;
       });
 
       const result = await adapter.loadPlaybackFromFile();
-      
-      // File loading in jsdom may not work exactly like browser, 
+
+      // File loading in jsdom may not work exactly like browser,
       // but we're exercising the code path
       expect(typeof result).toBe('boolean');
     });
@@ -684,7 +721,9 @@ describe('WebIOAdapter', () => {
         0: mockFile,
         length: 1,
         item: (): File => mockFile,
-        [Symbol.iterator]: function* (): Generator<File> { yield mockFile; },
+        [Symbol.iterator]: function* (): Generator<File> {
+          yield mockFile;
+        },
       } as unknown as FileList;
 
       let capturedOnchange: (() => Promise<void>) | null = null;
@@ -694,17 +733,21 @@ describe('WebIOAdapter', () => {
         if (tag === 'input') {
           Object.defineProperty(el, 'files', { get: () => mockFileList });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => Promise<void>) => { capturedOnchange = fn; },
+            set: (fn: () => Promise<void>) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
-            setTimeout(() => { if (capturedOnchange) capturedOnchange(); }, 0);
+            setTimeout(() => {
+              if (capturedOnchange) capturedOnchange();
+            }, 0);
           };
         }
         return el;
       });
 
       const result = await adapter.loadPlaybackFromFile();
-      
+
       expect(result).toBe(false);
     });
 
@@ -714,9 +757,16 @@ describe('WebIOAdapter', () => {
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
         if (tag === 'input') {
-          Object.defineProperty(el, 'files', { get: (): { length: number; item: () => null } => ({ length: 0, item: (): null => null }) });
+          Object.defineProperty(el, 'files', {
+            get: (): { length: number; item: () => null } => ({
+              length: 0,
+              item: (): null => null,
+            }),
+          });
           Object.defineProperty(el, 'onchange', {
-            set: (fn: () => void) => { capturedOnchange = fn; },
+            set: (fn: () => void) => {
+              capturedOnchange = fn;
+            },
           });
           (el as HTMLInputElement).click = (): void => {
             if (capturedOnchange) capturedOnchange();
@@ -726,7 +776,7 @@ describe('WebIOAdapter', () => {
       });
 
       const result = await adapter.loadPlaybackFromFile();
-      
+
       expect(result).toBe(false);
     });
   });

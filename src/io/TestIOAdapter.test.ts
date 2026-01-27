@@ -23,6 +23,24 @@ describe('TestIOAdapter', () => {
       expect(io.getCurrentWindow()).toBe(0);
       expect(io.getUpperWindowLines()).toBe(0);
     });
+
+    it('should return current version', () => {
+      io.initialize(5);
+      expect(io.getVersion()).toBe(5);
+    });
+
+    it('should default to version 3', () => {
+      expect(io.getVersion()).toBe(3);
+    });
+
+    it('should return current text style', () => {
+      io.setTextStyle(2); // bold
+      expect(io.getTextStyle()).toBe(2);
+    });
+
+    it('should default to style 0 (roman)', () => {
+      expect(io.getTextStyle()).toBe(0);
+    });
   });
 
   describe('print', () => {
@@ -147,9 +165,9 @@ describe('TestIOAdapter', () => {
       io.setWindow(1);
       io.print('Upper');
       io.splitWindow(2);
-      
+
       io.eraseWindow(-1);
-      
+
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
       expect(io.getUpperWindowLines()).toBe(0);
@@ -161,9 +179,9 @@ describe('TestIOAdapter', () => {
       io.setWindow(1);
       io.print('Upper');
       io.splitWindow(2);
-      
+
       io.eraseWindow(-2);
-      
+
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
       expect(io.getUpperWindowLines()).toBe(2); // Still split
@@ -207,7 +225,7 @@ describe('TestIOAdapter', () => {
         location: 'West of House',
         score: 10,
         turns: 5,
-        isTime: false
+        isTime: false,
       });
     });
 
@@ -228,9 +246,9 @@ describe('TestIOAdapter', () => {
       io.print('Hello');
       io.setWindow(1);
       io.print('Status');
-      
+
       io.restart();
-      
+
       expect(io.hasRestarted).toBe(true);
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
@@ -244,7 +262,7 @@ describe('TestIOAdapter', () => {
       io.print('Upper');
       io.setWindow(0);
       io.print('Lower');
-      
+
       expect(io.getFullOutput()).toBe('UpperLower');
     });
 
@@ -252,7 +270,7 @@ describe('TestIOAdapter', () => {
       io.print('Lower');
       io.setWindow(1);
       io.print('Upper');
-      
+
       expect(io.getLowerOutput()).toBe('Lower');
     });
 
@@ -261,7 +279,7 @@ describe('TestIOAdapter', () => {
       io.print('Upper');
       io.setWindow(0);
       io.print('Lower');
-      
+
       expect(io.getUpperOutput()).toBe('Upper');
     });
 
@@ -269,9 +287,9 @@ describe('TestIOAdapter', () => {
       io.print('Hello');
       io.setWindow(1);
       io.print('Status');
-      
+
       io.clearOutput();
-      
+
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
     });
@@ -286,9 +304,9 @@ describe('TestIOAdapter', () => {
       io.splitWindow(3);
       io.setTextStyle(2);
       io.setBufferMode(false);
-      
+
       io.reset();
-      
+
       expect(io.output).toEqual([]);
       expect(io.upperOutput).toEqual([]);
       expect(io.hasQuit).toBe(false);

@@ -858,7 +858,6 @@ export class Executor {
   private op_not(ins: DecodedInstruction): ExecutionResult {
     const value = this.getOperandValue(ins.operands[0]);
     return this.storeAndContinue(ins, ~value & 0xffff);
-    return { nextPC: ins.address + ins.length };
   }
 
   private op_call_1n(ins: DecodedInstruction): ExecutionResult {
