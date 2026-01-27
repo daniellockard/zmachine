@@ -137,12 +137,12 @@ export class ZCharDecoder {
           } else {
             currentAlphabet = getShiftedAlphabet(currentAlphabet, 5, this.version);
           }
-        } else if (!preventAbbreviation) {
-          // V3+ Abbreviation
+        } else if (!preventAbbreviation && i < zchars.length) {
+          // V3+ Abbreviation - bounds check before reading next z-char
           const nextZchar = zchars[i++];
           result += this.expandAbbreviation(zchar, nextZchar);
         }
-        // V3+ with preventAbbreviation: ignore the z-char
+        // V3+ with preventAbbreviation or no remaining z-chars: ignore
         continue;
       }
 
@@ -154,9 +154,9 @@ export class ZCharDecoder {
 
       // Z-char 6 in A2: 10-bit ZSCII escape
       if (alphabet === 2 && zchar === 6) {
-        // Need 2 more z-chars for the 10-bit code
-        const high = zchars[i++];
-        const low = zchars[i++];
+        // Need 2 more z-chars for the 10-bit code; missing values default to 0
+        const high = zchars[i++] ?? 0;
+        const low = zchars[i++] ?? 0;
         const zsciiCode = (high << 5) | low;
         result += zsciiToUnicode(zsciiCode);
         continue;

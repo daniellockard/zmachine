@@ -278,20 +278,18 @@ export class MapTracker {
 
         if (reverseConnection.to !== from) {
           // Inconsistent! The reverse direction goes somewhere else
-          // Mark both as one-way using immutable update
+          // Mark both as one-way using truly immutable update
           isOneWay = true;
           if (reverseIndex !== -1) {
-            this.map.connections[reverseIndex] = {
-              ...reverseConnection,
-              oneWay: true,
-            };
+            this.map.connections = this.map.connections.map((conn, idx) =>
+              idx === reverseIndex ? { ...conn, oneWay: true } : conn
+            );
           }
         } else if (reverseIndex !== -1) {
-          // Consistent - reverse goes back to us, use immutable update
-          this.map.connections[reverseIndex] = {
-            ...reverseConnection,
-            oneWay: false,
-          };
+          // Consistent - reverse goes back to us, use truly immutable update
+          this.map.connections = this.map.connections.map((conn, idx) =>
+            idx === reverseIndex ? { ...conn, oneWay: false } : conn
+          );
         }
       }
 
@@ -319,19 +317,31 @@ export class MapTracker {
     direction: Direction
   ): void {
     // Find any connection from 'room' in 'direction'
-    const outgoing = this.map.connections.find((c) => c.from === room && c.direction === direction);
+    const outgoingIndex = this.map.connections.findIndex(
+      (c) => c.from === room && c.direction === direction
+    );
 
-    if (outgoing && outgoing.to !== expectedReturn) {
-      // Inconsistent! Going 'direction' from 'room' doesn't return to where we came from
-      outgoing.oneWay = true;
+    if (outgoingIndex !== -1) {
+      const outgoing = this.map.connections[outgoingIndex];
 
-      // Also mark the incoming connection as one-way
-      const oppositeDir = DIRECTIONS[direction].opposite as Direction;
-      const incoming = this.map.connections.find(
-        (c) => c.from === expectedReturn && c.to === room && c.direction === oppositeDir
-      );
-      if (incoming) {
-        incoming.oneWay = true;
+      if (outgoing.to !== expectedReturn) {
+        // Inconsistent! Going 'direction' from 'room' doesn't return to where we came from
+        // Use immutable update for consistency
+        this.map.connections = this.map.connections.map((conn, idx) =>
+          idx === outgoingIndex ? { ...conn, oneWay: true } : conn
+        );
+
+        // Also mark the incoming connection as one-way
+        const oppositeDir = DIRECTIONS[direction].opposite as Direction;
+        const incomingIndex = this.map.connections.findIndex(
+          (c) => c.from === expectedReturn && c.to === room && c.direction === oppositeDir
+        );
+
+        if (incomingIndex !== -1) {
+          this.map.connections = this.map.connections.map((conn, idx) =>
+            idx === incomingIndex ? { ...conn, oneWay: true } : conn
+          );
+        }
       }
     }
   }
