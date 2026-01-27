@@ -1007,8 +1007,8 @@ export class Executor {
       if (locationObj !== 0) {
         const nameInfo = this.objectTable.getShortNameAddress(locationObj);
         const result = this.textDecoder.decode(nameInfo.address);
-        // Use explicit null/undefined check since empty string is a valid (if unusual) name
-        if (result.text !== undefined && result.text !== null) {
+        // Check for null/undefined (empty string is valid, though unusual)
+        if (result.text != null) {
           locationName = result.text;
         }
       }

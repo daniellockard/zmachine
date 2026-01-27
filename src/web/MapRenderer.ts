@@ -53,10 +53,10 @@ export class MapRenderer {
     this.gridSpacing = config.gridSpacing ?? 120;
     this.showNames = config.showNames ?? true;
 
-    // Validate that gridSpacing is larger than room dimensions to prevent overlap
-    if (this.gridSpacing <= this.roomWidth || this.gridSpacing <= this.roomHeight) {
+    // Validate that gridSpacing is at least as large as room dimensions to prevent overlap
+    if (this.gridSpacing < this.roomWidth || this.gridSpacing < this.roomHeight) {
       throw new Error(
-        `gridSpacing (${this.gridSpacing}) must be larger than roomWidth (${this.roomWidth}) and roomHeight (${this.roomHeight}) to avoid room overlap`
+        `gridSpacing (${this.gridSpacing}) must be at least as large as roomWidth (${this.roomWidth}) and roomHeight (${this.roomHeight}) to avoid room overlap`
       );
     }
 

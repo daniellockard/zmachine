@@ -174,15 +174,16 @@ export class MapTracker {
   }
 
   /**
-   * Get current location from Z-Machine global variable 0
-   * (Standard location for player's current room object)
+   * Get current location from Z-Machine global variable 16
+   * (the first global variable, typically the player's current room object)
    */
   private getCurrentLocation(): number | null {
     if (!this.machine) return null;
 
     try {
-      // Global variable 16 (index 0 in globals) is typically the current room
-      // In Z-machine, globals are variables 16-255, stored at globals address
+      // Read global variable 16 (index 0 in the globals table), which by convention
+      // usually holds the player's current room object. In the Z-machine, globals
+      // are variables 16-255, stored starting at header.globalsAddress.
       const globalsAddr = this.machine.header.globalsAddress;
       const location = this.machine.memory.readWord(globalsAddr);
       return location;

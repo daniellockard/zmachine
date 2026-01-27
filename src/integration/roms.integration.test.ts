@@ -186,8 +186,6 @@ describe('ROM Integration Tests', () => {
                 // Game should execute some instructions
                 // Note: Some games (Borderzone, Bureaucracy) need character input early
                 // so they may run fewer instructions before waiting for input.
-                // TODO: Consider adding separate tests with higher thresholds for games
-                // known to execute more instructions (e.g., Zork1 should exceed 100 steps)
                 expect(steps).toBeGreaterThan(10);
 
                 // Game should produce some output
@@ -200,6 +198,35 @@ describe('ROM Integration Tests', () => {
       }
     });
   }
+
+  // Additional test for games known to execute many instructions
+  describe('High-execution games validation', () => {
+    const highExecutionGames = ['zork1', 'zork2', 'zork3', 'hitchhiker', 'planetfall'];
+
+    for (const [version, roms] of romsByVersion) {
+      const highExecRoms = roms.filter((r) =>
+        highExecutionGames.some((name) => r.name.toLowerCase().includes(name))
+      );
+
+      if (highExecRoms.length > 0) {
+        describe(`V${version} high-execution games`, () => {
+          for (const rom of highExecRoms) {
+            it(`${rom.name} should execute at least 100 steps`, async () => {
+              const data = await loadRom(rom.path);
+              const io = new TestIOAdapter();
+              const zm = ZMachine.load(data, io);
+
+              const maxSteps = version >= 5 ? 500000 : 100000;
+              const { steps } = await runUntilInput(zm, io, maxSteps);
+
+              // These games are known to execute many instructions before input
+              expect(steps).toBeGreaterThan(100);
+            }, 60000);
+          }
+        });
+      }
+    }
+  });
 });
 
 // Summary test
