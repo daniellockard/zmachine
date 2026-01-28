@@ -636,7 +636,106 @@ kbd {
   color: var(--text-color);
 }
 
-/* Responsive: stack map below on narrow screens */
+/* ===== Inventory Panel ===== */
+
+.inventory-panel {
+  width: 300px;
+  background: var(--bg-color);
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.inventory-panel.hidden {
+  display: none;
+}
+
+.inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--status-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.inventory-header h3 {
+  font-size: 0.875rem;
+  color: var(--status-text);
+  margin: 0;
+}
+
+.inventory-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.inventory-controls button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.inventory-controls button:hover {
+  background: var(--border);
+  color: var(--text-color);
+}
+
+.inventory-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inventory-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+.inventory-item {
+  background: var(--status-bg);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.item-name {
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 0.875rem;
+}
+
+.item-history {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.history-entry {
+  padding: 2px 0;
+}
+
+/* Layout with inventory visible */
+.game-layout.with-inventory .game-main {
+  flex: 1;
+}
+
+/* Responsive: stack inventory below on narrow screens */
 @media (max-width: 768px) {
   .game-layout {
     flex-direction: column;
@@ -645,6 +744,13 @@ kbd {
   .map-panel {
     width: 100%;
     height: 200px;
+    border-left: none;
+    border-top: 2px solid var(--border);
+  }
+
+  .inventory-panel {
+    width: 100%;
+    max-height: 200px;
     border-left: none;
     border-top: 2px solid var(--border);
   }

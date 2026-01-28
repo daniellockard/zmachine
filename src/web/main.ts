@@ -10,6 +10,8 @@ import { ZMachine } from '../core/ZMachine';
 import { WebIOAdapter } from './WebIOAdapter';
 import { MapTracker } from './MapTracker';
 import { MapRenderer } from './MapRenderer';
+import { InventoryTracker } from './InventoryTracker';
+import { InventoryRenderer } from './InventoryRenderer';
 
 // Register service worker for PWA/offline support
 if ('serviceWorker' in navigator) {
@@ -65,11 +67,19 @@ function createIOAdapter(): WebIOAdapter {
     onBeforeInput: (text: string): void => {
       // Track location before command for map
       mapTracker?.beforeCommand(text);
+      // Track inventory before command
+      inventoryTracker?.beforeCommand(text);
     },
     onWaitingForInput: (): void => {
       // Update map when game is waiting for input
       // This fires after the game processes a command and before waiting for next input
       mapTracker?.afterCommand();
+      // Update inventory tracking
+      inventoryTracker?.afterCommand();
+      // Re-render inventory panel if visible
+      if (isInventoryVisible && inventoryRenderer) {
+        inventoryRenderer.render();
+      }
     },
   });
 }
@@ -99,6 +109,9 @@ async function loadStory(data: ArrayBuffer): Promise<void> {
 
     // Initialize map tracking
     initializeMap();
+
+    // Initialize inventory tracking
+    initializeInventory();
 
     // Start the game
     await startGame(machine);
@@ -245,6 +258,12 @@ const btnMapReset = document.getElementById('btn-map-reset') as HTMLButtonElemen
 const btnMapExport = document.getElementById('btn-map-export') as HTMLButtonElement;
 const gameLayout = document.getElementById('game-layout') as HTMLElement;
 
+// Inventory elements
+const btnInventory = document.getElementById('btn-inventory') as HTMLButtonElement;
+const inventoryPanel = document.getElementById('inventory-panel') as HTMLElement;
+const inventoryContainer = document.getElementById('inventory-container') as HTMLElement;
+const btnInventoryExport = document.getElementById('btn-inventory-export') as HTMLButtonElement;
+
 // Current IO adapter (set when game loads)
 let currentIO: WebIOAdapter | null = null;
 
@@ -252,6 +271,11 @@ let currentIO: WebIOAdapter | null = null;
 let mapTracker: MapTracker | null = null;
 let mapRenderer: MapRenderer | null = null;
 let isMapVisible = false;
+
+// Inventory tracking
+let inventoryTracker: InventoryTracker | null = null;
+let inventoryRenderer: InventoryRenderer | null = null;
+let isInventoryVisible = false;
 
 /**
  * Show the toolbar when a game is loaded
@@ -420,6 +444,60 @@ function setupMap(): void {
 }
 
 /**
+ * Toggle inventory panel visibility
+ */
+function toggleInventory(): void {
+  isInventoryVisible = !isInventoryVisible;
+  inventoryPanel.classList.toggle('hidden', !isInventoryVisible);
+  gameLayout.classList.toggle('with-inventory', isInventoryVisible);
+  btnInventory.classList.toggle('active', isInventoryVisible);
+
+  if (isInventoryVisible && inventoryRenderer) {
+    inventoryRenderer.render();
+  }
+}
+
+/**
+ * Initialize inventory tracking for the current game
+ */
+function initializeInventory(): void {
+  if (!machine) return;
+
+  inventoryTracker = new InventoryTracker();
+  inventoryTracker.attach(machine);
+
+  inventoryRenderer = new InventoryRenderer(inventoryTracker, {
+    container: inventoryContainer,
+  });
+}
+
+/**
+ * Export inventory as JSON file
+ */
+function exportInventory(): void {
+  if (!inventoryTracker) return;
+
+  const json = inventoryTracker.exportState();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'zmachine-inventory.json';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Setup inventory event handlers
+ */
+function setupInventory(): void {
+  btnInventory.addEventListener('click', toggleInventory);
+  btnInventoryExport.addEventListener('click', exportInventory);
+}
+
+/**
  * Setup toolbar event handlers
  */
 function setupToolbar(): void {
@@ -440,6 +518,9 @@ function setupToolbar(): void {
 
   // Map controls
   setupMap();
+
+  // Inventory controls
+  setupInventory();
 }
 
 /**
@@ -494,6 +575,13 @@ function setupKeyboardShortcuts(): void {
     if (e.ctrlKey && e.key === 'm') {
       e.preventDefault();
       toggleMap();
+      return;
+    }
+
+    // Ctrl+I - Toggle inventory
+    if (e.ctrlKey && e.key === 'i') {
+      e.preventDefault();
+      toggleInventory();
       return;
     }
   });

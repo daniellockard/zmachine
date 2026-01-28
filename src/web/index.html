@@ -32,6 +32,7 @@
       <button id="btn-playback" title="Load & Play Recording (Ctrl+P)">▶️ Playback</button>
       <span class="toolbar-separator"></span>
       <button id="btn-map" title="Toggle Map (Ctrl+M)">🗺️ Map</button>
+      <button id="btn-inventory" title="Toggle Inventory (Ctrl+I)">🎒 Inventory</button>
       <button id="btn-help" title="Show Help (F1)">❓ Help</button>
     </div>
 
@@ -85,6 +86,17 @@
         </div>
         <div id="map-container" class="map-container"></div>
       </div>
+
+      <!-- Inventory Panel -->
+      <div id="inventory-panel" class="inventory-panel hidden">
+        <div class="inventory-header">
+          <h3>🎒 Inventory</h3>
+          <div class="inventory-controls">
+            <button id="btn-inventory-export" title="Export inventory">📥</button>
+          </div>
+        </div>
+        <div id="inventory-container" class="inventory-container"></div>
+      </div>
     </div>
 
     <!-- Help Modal -->
@@ -99,6 +111,7 @@
           <tr><td><kbd>Ctrl+D</kbd></td><td>Download transcript</td></tr>
           <tr><td><kbd>Ctrl+R</kbd></td><td>Toggle recording</td></tr>
           <tr><td><kbd>Ctrl+M</kbd></td><td>Toggle map</td></tr>
+          <tr><td><kbd>Ctrl+I</kbd></td><td>Toggle inventory</td></tr>
           <tr><td><kbd>Ctrl+P</kbd></td><td>Load playback file</td></tr>
           <tr><td><kbd>F1</kbd></td><td>Show this help</td></tr>
           <tr><td><kbd>Escape</kbd></td><td>Close dialogs</td></tr>
