@@ -35,14 +35,8 @@ export class InventoryRenderer {
    */
   constructor(tracker: InventoryTracker, config: InventoryRendererConfig) {
     if (!config.container) {
-      const receivedDescription =
-        config.container === null
-          ? 'null'
-          : config.container === undefined
-            ? 'undefined'
-            : typeof config.container;
       throw new Error(
-        `InventoryRenderer requires a valid container element, but received: ${receivedDescription}`
+        `InventoryRenderer requires a valid container element, but received: ${String(config.container)}`
       );
     }
 
