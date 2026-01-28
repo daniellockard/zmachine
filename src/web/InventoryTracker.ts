@@ -163,10 +163,10 @@ export class InventoryTracker {
     const currentRoom = this.getCurrentRoom();
     if (currentRoom) {
       // Look for objects in this room that could be the player
-      // The player typically has items as children
+      // First try to identify by common player object names
       let child = this.machine.objectTable.getChild(currentRoom);
       while (child !== 0) {
-        // Check if this object has children (player usually carries items)
+        // Check if this object has a known player object name
         const name = this.getObjectName(child);
         const lowerName = name.toLowerCase();
         // Common player object names
@@ -335,8 +335,8 @@ export class InventoryTracker {
             history: [...item.history, historyEntry],
           });
 
-          // Item movement tracked in history
-          // Significant changes: picked up if now in inventory, dropped if was in inventory
+          // At this point the movement is fully recorded: consumers can interpret
+          // "picked up" vs "dropped" by comparing from/to locations and the inInventory flag.
         }
       } catch {
         // Object no longer exists, remove from tracking
