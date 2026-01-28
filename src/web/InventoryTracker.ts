@@ -63,6 +63,13 @@ export interface InventoryState {
  * Tracks inventory changes and builds item history
  */
 export class InventoryTracker {
+  /**
+   * Number of consecutive invalid objects to find before stopping the scan.
+   * Most Z-machine games use <500 objects, so this provides a reasonable
+   * heuristic to avoid scanning all 65535 possible objects in V4+ games.
+   */
+  private static readonly MAX_CONSECUTIVE_INVALID_OBJECTS = 10;
+
   private machine: ZMachine | null = null;
   private state: InventoryState;
   private lastCommand: string = '';
@@ -255,7 +262,6 @@ export class InventoryTracker {
     // Most games use far fewer objects (<500), so stop when finding consecutive invalid objects
     const maxObjects = this.machine.version <= 3 ? 255 : 65535;
     let consecutiveInvalid = 0;
-    const maxConsecutiveInvalid = 10; // Stop after this many consecutive invalid objects
 
     for (let objNum = 1; objNum <= maxObjects; objNum++) {
       try {
@@ -267,7 +273,7 @@ export class InventoryTracker {
         if (name === `Object ${objNum}` && parent === 0) {
           // This object appears unused
           consecutiveInvalid++;
-          if (consecutiveInvalid >= maxConsecutiveInvalid) {
+          if (consecutiveInvalid >= InventoryTracker.MAX_CONSECUTIVE_INVALID_OBJECTS) {
             // Found too many consecutive invalid objects - stop scanning
             break;
           }
