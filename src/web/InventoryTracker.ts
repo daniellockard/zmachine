@@ -347,8 +347,9 @@ export class InventoryTracker {
 
   /**
    * Import inventory state from JSON
+   * @returns true if import was successful, false if the JSON was invalid
    */
-  importState(json: string): void {
+  importState(json: string): boolean {
     try {
       const data = JSON.parse(json);
       this.state = {
@@ -356,8 +357,10 @@ export class InventoryTracker {
         playerObject: data.playerObject,
         currentTurn: data.currentTurn,
       };
+      return true;
     } catch {
-      // Failed to import inventory state - state remains unchanged
+      // Invalid JSON or malformed data - state remains unchanged
+      return false;
     }
   }
 

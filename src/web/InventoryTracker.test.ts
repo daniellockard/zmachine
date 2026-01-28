@@ -111,15 +111,27 @@ describe('InventoryTracker', () => {
       const exportedJson = tracker.exportState();
 
       const newTracker = new InventoryTracker();
-      newTracker.importState(exportedJson);
+      const result = newTracker.importState(exportedJson);
 
+      expect(result).toBe(true);
       const state = newTracker.getState();
       expect(state.currentTurn).toBe(0);
     });
 
-    it('should handle invalid JSON gracefully', () => {
-      // Should not throw
-      expect(() => tracker.importState('not valid json')).not.toThrow();
+    it('should return false for invalid JSON', () => {
+      const result = tracker.importState('not valid json');
+      expect(result).toBe(false);
+    });
+
+    it('should preserve state when import fails', () => {
+      tracker.afterCommand();
+      tracker.afterCommand();
+      expect(tracker.getState().currentTurn).toBe(2);
+
+      const result = tracker.importState('invalid');
+
+      expect(result).toBe(false);
+      expect(tracker.getState().currentTurn).toBe(2);
     });
 
     it('should preserve turn count across import', () => {
