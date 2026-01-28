@@ -51,8 +51,6 @@ export class InventoryRenderer {
    * Create the inventory panel structure
    */
   private createPanel(): void {
-    if (!this.container) return;
-
     // Create content directly in the container (no extra wrapper needed)
     this.container.innerHTML = `
       <div class="inventory-list"></div>
@@ -64,8 +62,6 @@ export class InventoryRenderer {
    * Render the current inventory state
    */
   render(): void {
-    if (!this.container) return;
-
     const listEl = this.container.querySelector('.inventory-list') as HTMLElement;
     const emptyEl = this.container.querySelector('.inventory-empty') as HTMLElement;
 
