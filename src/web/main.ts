@@ -466,6 +466,12 @@ function initializeInventory(): void {
   inventoryTracker = new InventoryTracker();
   inventoryTracker.attach(machine);
 
+  if (!inventoryContainer) {
+    // eslint-disable-next-line no-console
+    console.warn('Inventory container not found - inventory panel disabled');
+    return;
+  }
+
   inventoryRenderer = new InventoryRenderer(inventoryTracker, {
     container: inventoryContainer,
   });

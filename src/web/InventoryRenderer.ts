@@ -30,17 +30,21 @@ export class InventoryRenderer {
   private showHistory: boolean;
   private maxHistoryEntries: number;
 
+  /**
+   * @throws Error if config.container is null or undefined
+   */
   constructor(tracker: InventoryTracker, config: InventoryRendererConfig) {
+    if (!config.container) {
+      throw new Error('InventoryRenderer requires a valid container element');
+    }
+
     this.tracker = tracker;
     this.container = config.container;
     this.showHistory = config.showHistory ?? true;
     this.maxHistoryEntries = config.maxHistoryEntries ?? 5;
 
-    // Only initialize if container exists
-    if (this.container) {
-      this.createPanel();
-      this.render();
-    }
+    this.createPanel();
+    this.render();
   }
 
   /**

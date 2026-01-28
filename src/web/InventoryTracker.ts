@@ -168,12 +168,13 @@ export class InventoryTracker {
       while (child !== 0) {
         // Check if this object has children (player usually carries items)
         const name = this.getObjectName(child);
+        const lowerName = name.toLowerCase();
         // Common player object names
         if (
-          name.toLowerCase().includes('you') ||
-          name.toLowerCase() === 'cretin' ||
-          name.toLowerCase() === 'player' ||
-          name.toLowerCase() === 'self'
+          lowerName.includes('you') ||
+          lowerName === 'cretin' ||
+          lowerName === 'player' ||
+          lowerName === 'self'
         ) {
           this.playerObjectCache = child;
           this.state.playerObject = child;
@@ -251,7 +252,10 @@ export class InventoryTracker {
 
     // Scan through objects to find items
     // Z-machine objects are numbered 1-255 (v1-3) or 1-65535 (v4+)
+    // Most games use far fewer objects (<500), so stop when finding consecutive invalid objects
     const maxObjects = this.machine.version <= 3 ? 255 : 65535;
+    let consecutiveInvalid = 0;
+    const maxConsecutiveInvalid = 10; // Stop after this many consecutive invalid objects
 
     for (let objNum = 1; objNum <= maxObjects; objNum++) {
       try {
@@ -261,9 +265,17 @@ export class InventoryTracker {
         const name = this.getObjectName(objNum);
 
         if (name === `Object ${objNum}` && parent === 0) {
-          // Skip objects that appear unused
+          // This object appears unused
+          consecutiveInvalid++;
+          if (consecutiveInvalid >= maxConsecutiveInvalid) {
+            // Found too many consecutive invalid objects - stop scanning
+            break;
+          }
           continue;
         }
+
+        // Found a valid object - reset counter
+        consecutiveInvalid = 0;
 
         // Check if this is a takeable item (child of player or a room)
         const isInInventory = parent === playerObj && playerObj !== null;
