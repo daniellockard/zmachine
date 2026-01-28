@@ -42,7 +42,7 @@ export class InventoryRenderer {
             ? 'undefined'
             : typeof config.container;
       throw new Error(
-        'InventoryRenderer requires a valid container element, but received: ' + receivedDescription
+        `InventoryRenderer requires a valid container element, but received: ${receivedDescription}`
       );
     }
 
