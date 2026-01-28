@@ -300,9 +300,14 @@ export class InventoryTracker {
           firstSeen: this.state.currentTurn,
           history: [],
         });
-      } catch {
-        // Object doesn't exist, stop scanning
-        break;
+      } catch (error: unknown) {
+        // Only stop scanning when we hit the end of valid objects.
+        // For other errors, skip this object and continue scanning.
+        if (error instanceof RangeError) {
+          // Object doesn't exist, stop scanning
+          break;
+        }
+        continue;
       }
     }
   }
