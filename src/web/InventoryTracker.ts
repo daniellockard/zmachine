@@ -209,13 +209,16 @@ export class InventoryTracker {
 
   /**
    * Get current room from global variable 16
+   * In the Z-machine, global 16 (0-indexed) traditionally stores the current location.
    */
   private getCurrentRoom(): number | null {
     if (!this.machine) return null;
 
     try {
       const globalsAddr = this.machine.header.globalsAddress;
-      const roomObjectNum = this.machine.memory.readWord(globalsAddr);
+      const globalIndex = 16;
+      const roomGlobalAddr = globalsAddr + globalIndex * 2;
+      const roomObjectNum = this.machine.memory.readWord(roomGlobalAddr);
       return roomObjectNum > 0 ? roomObjectNum : null;
     } catch {
       return null;
