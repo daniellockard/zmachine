@@ -176,7 +176,9 @@ export class InventoryTracker {
         // Check if this object has a known player object name
         const name = this.getObjectName(child);
         const lowerName = name.toLowerCase();
-        // Common player object names
+        // Common player object names. Some Z-machine story files use
+        // "cretin" as the internal short name for the player object,
+        // so we keep that here for compatibility.
         if (
           lowerName.includes('you') ||
           lowerName === 'cretin' ||
