@@ -170,7 +170,7 @@ await zm.run();
 npm run dev:web
 ```
 
-Then open **http://localhost:5173** and drag-and-drop a story file to start playing!
+Then open **http://localhost:8080** and drag-and-drop a story file to start playing!
 
 <details>
 <summary>🖼️ <b>Screenshot Preview</b></summary>
