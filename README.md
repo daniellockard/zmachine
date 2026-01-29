@@ -1,29 +1,113 @@
-# Z-Machine Emulator
+<div align="center">
 
-A TypeScript implementation of the Z-machine virtual machine for running Infocom-style text adventure games.
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   ███████╗      ███╗   ███╗ █████╗  ██████╗██╗  ██╗██╗███╗   ██╗███████╗  ║
+║   ╚══███╔╝      ████╗ ████║██╔══██╗██╔════╝██║  ██║██║████╗  ██║██╔════╝  ║
+║     ███╔╝ █████╗██╔████╔██║███████║██║     ███████║██║██╔██╗ ██║█████╗    ║
+║    ███╔╝  ╚════╝██║╚██╔╝██║██╔══██║██║     ██╔══██║██║██║╚██╗██║██╔══╝    ║
+║   ███████╗      ██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║██║ ╚████║███████╗  ║
+║   ╚══════╝      ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝  ║
+║                                                                           ║
+║            ⚡ A Modern TypeScript Z-Machine Emulator ⚡                    ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+```
 
-[![npm version](https://badge.fury.io/js/zmachine.svg)](https://www.npmjs.com/package/zmachine)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+### Run classic Infocom text adventures in Node.js or the browser
 
-## Features
+<br/>
 
-- 🎮 **Runs Classic Infocom Games** - Full support for V1-V5 and V8 games including Zork, Planetfall, Hitchhiker's Guide, and more
-- 🚀 **Zero Dependencies** - Pure TypeScript, no runtime dependencies in core
-- 🌐 **Universal** - Works in Node.js and browsers
-- 📦 **Tree-shakeable** - Import only what you need
-- 🔧 **Extensible** - Implement your own I/O adapter for any platform
-- ✅ **Well-tested** - 898+ unit tests with 99.79% code coverage
-- 💾 **Full Save/Restore** - Quetzal-compatible save format with undo support
+[![npm version](https://img.shields.io/npm/v/zmachine?style=for-the-badge&logo=npm&logoColor=white&color=CB3837)](https://www.npmjs.com/package/zmachine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-success?style=for-the-badge&logo=checkmarx&logoColor=white)](package.json)
 
-## Installation
+[![Tests](https://img.shields.io/badge/Tests-898+-success?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Coverage](https://img.shields.io/badge/Coverage-99.79%25-brightgreen?style=flat-square&logo=codecov&logoColor=white)](coverage/index.html)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Browser](https://img.shields.io/badge/Browser-Ready-blue?style=flat-square&logo=googlechrome&logoColor=white)](#browser)
+
+---
+
+**[📖 Documentation](#api-reference)** · **[🚀 Quick Start](#quick-start)** · **[🎮 Web Demo](#web-demo)** · **[📦 npm](https://www.npmjs.com/package/zmachine)**
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [📦 Installation](#-installation)
+- [🚀 Quick Start](#-quick-start)
+- [🎮 Web Demo](#-web-demo)
+- [📊 Supported Versions](#-supported-versions)
+- [🔧 I/O Adapter Interface](#-io-adapter-interface)
+- [📖 API Reference](#-api-reference)
+- [🏗️ Building](#️-building)
+- [🧪 Testing](#-testing)
+- [📚 Resources](#-resources)
+- [📄 License](#-license)
+
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🎮 Classic Gaming
+Run legendary Infocom titles: **Zork**, **Planetfall**, **Hitchhiker's Guide**, **Enchanter**, and 100+ more games from the golden age of interactive fiction.
+
+### 🚀 Zero Dependencies
+Pure TypeScript with **no runtime dependencies** in the core engine. Just clean, modern JavaScript.
+
+### 🌐 Universal Platform
+Works seamlessly in **Node.js** and all **modern browsers**. One codebase, everywhere.
+
+</td>
+<td width="50%">
+
+### 📦 Tree-Shakeable
+Import only what you need. The core engine is modular and optimized for minimal bundle size.
+
+### 🔧 Extensible Architecture
+Implement your own `IOAdapter` to connect the Z-machine to any platform—terminals, GUIs, bots, or embedded systems.
+
+### ✅ Battle-Tested
+**898+ unit tests** with **99.79% code coverage**. Quetzal-compatible save format with full undo support.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📦 Installation
 
 ```bash
 npm install zmachine
 ```
 
-## Quick Start
+<details>
+<summary>📋 <b>Also available via yarn, pnpm, or bun</b></summary>
 
-### Node.js
+```bash
+yarn add zmachine
+pnpm add zmachine
+bun add zmachine
+```
+
+</details>
+
+---
+
+## 🚀 Quick Start
+
+### 💻 Node.js
 
 ```typescript
 import { ZMachine, IOAdapter } from 'zmachine';
@@ -44,7 +128,7 @@ const zm = ZMachine.load(storyData, io);
 await zm.run();
 ```
 
-### Browser
+### 🌐 Browser
 
 ```typescript
 import { ZMachine } from 'zmachine';
@@ -72,30 +156,59 @@ io.initialize(zm.version);
 await zm.run();
 ```
 
-## Web Demo
+---
 
-Run the included web UI for playing games in your browser:
+## 🎮 Web Demo
+
+<div align="center">
+
+> 🕹️ **Try it now!** Run the included web UI for playing games in your browser.
+
+</div>
 
 ```bash
 npm run dev:web
 ```
 
-Then open http://localhost:5173 and drag-and-drop a story file.
+Then open **http://localhost:5173** and drag-and-drop a story file to start playing!
 
-## Supported Versions
+<details>
+<summary>🖼️ <b>Screenshot Preview</b></summary>
 
-| Version | Support | Notes |
-|---------|---------|-------|
-| V1 | ✅ Full | Early Zork prototypes |
-| V2 | ✅ Full | Early Infocom games |
-| V3 | ✅ Full | Zork I-III, Planetfall, Hitchhiker's, Enchanter, etc. |
-| V4 | ✅ Full | A Mind Forever Voyaging, Trinity, Bureaucracy |
-| V5 | ✅ Full | Beyond Zork, Sherlock, most Inform games |
-| V6 | ❌ Not Supported | Requires graphics/mouse (Shogun, Zork Zero, Arthur) |
-| V7 | ✅ Full | Large V5 variant |
-| V8 | ✅ Full | Large V5 variant, most modern Inform games |
+<br/>
 
-## Supported Features
+The web demo features a retro terminal aesthetic with:
+- 📟 Classic green-on-black CRT styling
+- ⌨️ Full keyboard input support
+- 💾 Save/restore game state
+- 📜 Transcript recording
+- 🎨 Z-machine text styling (bold, italic, colors)
+
+</details>
+
+---
+
+## 📊 Supported Versions
+
+<div align="center">
+
+| Version | Status | Era | Notable Games |
+|:-------:|:------:|:---:|:-------------|
+| **V1** | ✅ Full | 1980 | Early Zork prototypes |
+| **V2** | ✅ Full | 1981 | Early Infocom games |
+| **V3** | ✅ Full | 1982-1987 | Zork I-III, Planetfall, Hitchhiker's, Enchanter trilogy |
+| **V4** | ✅ Full | 1985-1988 | A Mind Forever Voyaging, Trinity, Bureaucracy |
+| **V5** | ✅ Full | 1987+ | Beyond Zork, Sherlock, most Inform games |
+| **V6** | ⚠️ Partial | 1988+ | Graphics games (Shogun, Zork Zero, Arthur) |
+| **V7** | ✅ Full | — | Large V5 variant |
+| **V8** | ✅ Full | — | Large V5 variant, modern Inform games |
+
+</div>
+
+> **Note:** V6 games require graphics/mouse support which is not implemented. Text-only features work.
+
+<details>
+<summary>📜 <b>Full Feature Support Matrix</b></summary>
 
 ### ✅ Fully Implemented
 
@@ -125,9 +238,16 @@ These features are exclusive to V6 games and require a graphics layer:
 - **Graphics windows**: move_window, window_size, window_style, scroll_window, set_true_colour (extended)
 - **Font metrics**: get_wind_prop, put_wind_prop, make_menu
 
-## I/O Adapter Interface
+</details>
 
-Implement `IOAdapter` to connect the Z-machine to your platform:
+---
+
+## 🔧 I/O Adapter Interface
+
+Implement the `IOAdapter` interface to connect the Z-machine to your platform:
+
+<details>
+<summary>📋 <b>View Full Interface Definition</b></summary>
 
 ```typescript
 interface IOAdapter {
@@ -171,9 +291,13 @@ interface IOAdapter {
 }
 ```
 
-## API Reference
+</details>
 
-### ZMachine
+---
+
+## 📖 API Reference
+
+### 🖥️ ZMachine
 
 The main class for running Z-machine games.
 
@@ -200,7 +324,8 @@ zm.lookupWord(word)           // Look up word in dictionary
 zm.restart()                  // Restart the game
 ```
 
-### Memory
+<details>
+<summary>💾 <b>Memory Access</b></summary>
 
 Low-level memory access for tools and debugging:
 
@@ -211,7 +336,10 @@ zm.memory.writeWord(address, value);         // Write 16-bit word
 zm.memory.writeByte(address, value);         // Write 8-bit byte
 ```
 
-### Text Encoding/Decoding
+</details>
+
+<details>
+<summary>📝 <b>Text Encoding/Decoding</b></summary>
 
 ```typescript
 import { ZCharDecoder, ZCharEncoder, ZSCII } from 'zmachine';
@@ -229,7 +357,10 @@ const unicode = ZSCII.toUnicode(zsciiCode);
 const zscii = ZSCII.fromUnicode(unicodeChar);
 ```
 
-### GameState (Save/Restore)
+</details>
+
+<details>
+<summary>💽 <b>GameState (Save/Restore)</b></summary>
 
 ```typescript
 import { GameState, Quetzal } from 'zmachine';
@@ -243,7 +374,10 @@ const state = Quetzal.read(quetzalData, originalStoryData);
 GameState.restore(zmachine, state);
 ```
 
-## WebIOAdapter Features
+</details>
+
+<details>
+<summary>🌐 <b>WebIOAdapter Features</b></summary>
 
 The built-in `WebIOAdapter` includes:
 
@@ -278,60 +412,135 @@ io.downloadRecording();
 io.loadPlayback(['north', 'take lamp', 'light lamp']);
 ```
 
-## Building
+</details>
+
+---
+
+## 🏗️ Building
 
 ```bash
 npm install
 npm run build          # Compile TypeScript
-npm test               # Run core tests (817 tests)
-npm run test:web       # Run web tests (81 tests)
-npm run test:all       # Run all tests (898 tests)
-npm run test:coverage  # Run with coverage report
-npm run lint           # ESLint check
+npm run build:web      # Build web player
+npm run build:lib      # Build npm library
 npm run dev:web        # Start web dev server
 ```
 
-## Project Structure
+---
+
+## 🧪 Testing
+
+<div align="center">
+
+| Command | Description | Tests |
+|---------|-------------|-------|
+| `npm test` | Core tests | 817 |
+| `npm run test:web` | Web tests | 81 |
+| `npm run test:all` | All tests | 898+ |
+| `npm run test:coverage` | With coverage | 99.79% |
+
+</div>
+
+```bash
+npm test               # Run core tests
+npm run test:watch     # Watch mode
+npm run test:coverage  # Generate coverage report
+npm run lint           # ESLint check
+```
+
+---
+
+## 📁 Project Structure
 
 ```
 src/
-├── core/              # Zero-dependency core
-│   ├── cpu/           # Stack and call frames
-│   ├── dictionary/    # Word lookup and tokenization
-│   ├── execution/     # Opcode execution engine
-│   ├── instructions/  # Opcode definitions and decoder
-│   ├── memory/        # Memory and header access
-│   ├── objects/       # Object tree and properties
-│   ├── state/         # Save/restore and Quetzal format
-│   ├── text/          # ZSCII and Z-character encoding
-│   ├── variables/     # Variable access (locals, globals, stack)
-│   └── ZMachine.ts    # Main VM class
-├── io/                # I/O adapter interfaces
-├── types/             # TypeScript type definitions
-├── web/               # Browser-based player
-│   ├── WebIOAdapter.ts  # DOM-based I/O implementation
-│   └── main.ts        # Web UI entry point
-└── index.ts           # Public API exports
+├── core/              # 🎯 Zero-dependency core
+│   ├── cpu/           #    Stack and call frames
+│   ├── dictionary/    #    Word lookup and tokenization
+│   ├── execution/     #    Opcode execution engine (102 handlers)
+│   ├── instructions/  #    Opcode definitions and decoder
+│   ├── memory/        #    Memory and header access
+│   ├── objects/       #    Object tree and properties
+│   ├── state/         #    Save/restore and Quetzal format
+│   ├── text/          #    ZSCII and Z-character encoding
+│   ├── variables/     #    Variable access (locals, globals, stack)
+│   └── ZMachine.ts    #    Main VM class
+├── io/                # 🔌 I/O adapter interfaces
+├── types/             # 📝 TypeScript type definitions
+├── web/               # 🌐 Browser-based player
+│   ├── WebIOAdapter.ts
+│   └── main.ts
+└── index.ts           # 📦 Public API exports
 ```
 
-## Testing with Story Files
+---
 
-Story files (.z3, .z5, .z8, etc.) are copyrighted. Obtain them legally:
+## 🎲 Finding Story Files
 
-- **Commercial**: [GOG.com](https://www.gog.com) sells Infocom collections
-- **Free**: [IF Archive](https://ifarchive.org/) has free Inform games
-- **Create your own**: Use [Inform 7](http://inform7.com/) to write games
+Story files (`.z3`, `.z5`, `.z8`, etc.) are copyrighted. Here's where to get them legally:
 
-Place story files in a `roms/` folder (gitignored) for integration testing.
+| Source | Type | Description |
+|--------|------|-------------|
+| 🛒 [GOG.com](https://www.gog.com) | Commercial | Infocom collections for sale |
+| 📚 [IF Archive](https://ifarchive.org/) | Free | Thousands of free Inform games |
+| ✍️ [Inform 7](http://inform7.com/) | Create | Write your own Z-machine games |
+| 🔧 [ZILF](https://foss.heptapod.net/zilf/zilf) | Create | Write games in ZIL (original Infocom language) |
 
-## Resources
+> **Tip:** Place story files in a `roms/` folder (gitignored) for integration testing.
 
-- [Z-Machine Specification v1.1](https://www.inform-fiction.org/zmachine/standards/z1point1/) - The definitive Z-machine reference
-- [Quetzal Save Format](http://inform-fiction.org/zmachine/standards/quetzal/) - Standard save file format
-- [IF Archive](https://ifarchive.org/) - Interactive fiction repository
-- [Inform 7](http://inform7.com/) - Write your own Z-machine games
-- [ZILF](https://foss.heptapod.net/zilf/zilf) - Write games in ZIL (original Infocom language)
+---
 
-## License
+## 📚 Resources
 
-MIT © Daniel Lockard
+<table>
+<tr>
+<td>
+
+**📖 Specifications**
+- [Z-Machine Specification v1.1](https://www.inform-fiction.org/zmachine/standards/z1point1/) — The definitive reference
+- [Quetzal Save Format](http://inform-fiction.org/zmachine/standards/quetzal/) — Standard save format
+
+</td>
+<td>
+
+**🎮 Interactive Fiction**
+- [IF Archive](https://ifarchive.org/) — Massive IF repository
+- [IFDB](https://ifdb.org/) — Interactive Fiction Database
+- [r/interactivefiction](https://reddit.com/r/interactivefiction) — Reddit community
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for guidelines.
+
+```bash
+git clone https://github.com/dlockard/zmachine.git
+cd zmachine
+npm install
+npm test
+```
+
+---
+
+## 📄 License
+
+<div align="center">
+
+MIT © [Daniel Lockard](https://github.com/dlockard)
+
+---
+
+<sub>
+
+Made with ☕ and a love for classic interactive fiction.
+
+**[⬆ Back to top](#)**
+
+</sub>
+
+</div>
