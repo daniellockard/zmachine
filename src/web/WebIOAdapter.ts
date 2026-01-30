@@ -106,6 +106,8 @@ export class WebIOAdapter implements IOAdapter {
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
+        // eslint-disable-next-line no-console
+        console.log(`[WebIO] Enter pressed, resolving with: "${text}"`);
 
         // Notify before processing (for map tracking)
         if (this.onBeforeInput) {
@@ -123,6 +125,8 @@ export class WebIOAdapter implements IOAdapter {
         const resolver = this.lineResolve;
         this.lineResolve = undefined;
         resolver({ text, terminator: 13 });
+        // eslint-disable-next-line no-console
+        console.log(`[WebIO] Resolver returned`);
       } else if (this.charResolve) {
         // Single character input
         const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;

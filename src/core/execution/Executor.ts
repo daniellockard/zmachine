@@ -1081,7 +1081,11 @@ export class Executor {
     // time and routine operands are for timed input (not fully implemented)
 
     const maxLen = this.memory.readByte(textBuffer);
+    // eslint-disable-next-line no-console
+    console.log(`[Executor] readInput: calling io.readLine(${maxLen})`);
     const result = await this.io.readLine(maxLen);
+    // eslint-disable-next-line no-console
+    console.log(`[Executor] readInput: got result:`, JSON.stringify(result));
 
     // Store text in buffer (lowercase)
     const text = result.text.toLowerCase();
