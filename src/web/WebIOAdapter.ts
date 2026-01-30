@@ -103,21 +103,9 @@ export class WebIOAdapter implements IOAdapter {
 
   private setupInputHandler(): void {
     this.input.addEventListener('keydown', (e) => {
-      // eslint-disable-next-line no-console
-      console.log(
-        '[WebIO] keydown:',
-        e.key,
-        'lineResolve:',
-        !!this.lineResolve,
-        'charResolve:',
-        !!this.charResolve
-      );
-
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
-        // eslint-disable-next-line no-console
-        console.log('[WebIO] Processing input:', text);
 
         // Notify before processing (for map tracking)
         if (this.onBeforeInput) {
@@ -132,13 +120,9 @@ export class WebIOAdapter implements IOAdapter {
         // Echo input to output
         this.print(text + '\n');
 
-        // eslint-disable-next-line no-console
-        console.log('[WebIO] Resolving lineResolve with:', { text, terminator: 13 });
         const resolver = this.lineResolve;
         this.lineResolve = undefined;
         resolver({ text, terminator: 13 });
-        // eslint-disable-next-line no-console
-        console.log('[WebIO] lineResolve completed');
       } else if (this.charResolve) {
         // Single character input
         const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
@@ -159,9 +143,6 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   print(text: string): void {
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] print:', JSON.stringify(text));
-
     // Capture transcript if enabled
     if (this.transcriptEnabled) {
       this.transcript.push(text);
@@ -250,31 +231,37 @@ export class WebIOAdapter implements IOAdapter {
   /** Pending readLine promise for serialization */
   private pendingReadLine: Promise<ReadLineResult> | null = null;
 
+  /** Counter for readLine calls to detect runaway loops */
+  private readLineCounter = 0;
+
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] readLine called, maxLength:', maxLength, 'timeout:', timeout);
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] readLine - current input value:', JSON.stringify(this.input.value));
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] readLine - existing lineResolve?', !!this.lineResolve);
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] readLine - pendingReadLine?', !!this.pendingReadLine);
+    this.readLineCounter++;
+    const callId = this.readLineCounter;
+
+    // Only log if this looks like a runaway loop (more than 3 calls in quick succession)
+    if (callId > 3) {
+      // eslint-disable-next-line no-console
+      console.error(`[WebIO] LOOP DETECTED: readLine #${callId}`);
+      // eslint-disable-next-line no-console
+      console.trace('[WebIO] Stack trace:');
+      // Break the loop by throwing
+      throw new Error(`readLine loop detected: call #${callId}`);
+    }
 
     // GUARD: If we already have a pending readLine, wait for it first
     if (this.pendingReadLine) {
       // eslint-disable-next-line no-console
-      console.warn(
-        '[WebIO] WARNING: readLine called while already waiting! Waiting for previous...'
-      );
+      console.warn('[WebIO] readLine called while already waiting!');
       await this.pendingReadLine;
-      // eslint-disable-next-line no-console
-      console.log('[WebIO] Previous readLine completed, continuing with new one');
     }
 
     // Create the actual readLine promise
     this.pendingReadLine = this.doReadLine(maxLength, timeout);
     try {
-      return await this.pendingReadLine;
+      const result = await this.pendingReadLine;
+      // Reset counter after successful user input
+      this.readLineCounter = 0;
+      return result;
     } finally {
       this.pendingReadLine = null;
     }
@@ -282,17 +269,8 @@ export class WebIOAdapter implements IOAdapter {
 
   private async doReadLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
     // Check for playback mode - automatically provide next input
-    // eslint-disable-next-line no-console
-    console.log(
-      '[WebIO] readLine - isPlayingBack:',
-      this.isPlayingBack,
-      'playbackQueue.length:',
-      this.playbackQueue.length
-    );
     if (this.isPlayingBack && this.playbackQueue.length > 0) {
       const text = this.playbackQueue.shift()!;
-      // eslint-disable-next-line no-console
-      console.log('[WebIO] PLAYBACK: auto-providing input:', text);
       this.print('>' + text + '\n');
       // Small delay to make playback visible
       await new Promise((r) => setTimeout(r, 100));
@@ -312,15 +290,7 @@ export class WebIOAdapter implements IOAdapter {
     this.input.maxLength = maxLength;
 
     return new Promise((resolve) => {
-      // eslint-disable-next-line no-console
-      console.log('[WebIO] readLine - Promise created, setting lineResolve');
-      this.lineResolve = (result: ReadLineResult): void => {
-        // eslint-disable-next-line no-console
-        console.log('[WebIO] readLine - lineResolve CALLED with:', result);
-        // eslint-disable-next-line no-console
-        console.trace('[WebIO] lineResolve call stack:');
-        resolve(result);
-      };
+      this.lineResolve = resolve;
 
       // Timeout support: timeout is in tenths of a second
       if (timeout && timeout > 0) {
@@ -339,8 +309,6 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async readChar(timeout?: number): Promise<number> {
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] readChar called, timeout:', timeout);
     this.input.focus();
 
     return new Promise((resolve) => {
@@ -545,16 +513,12 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   quit(): void {
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] QUIT called');
     this.print('\n[Game ended]\n');
     this.input.disabled = true;
     this.onQuit?.();
   }
 
   restart(): void {
-    // eslint-disable-next-line no-console
-    console.log('[WebIO] RESTART called');
     this.output.innerHTML = '';
     this.onRestart?.();
   }
