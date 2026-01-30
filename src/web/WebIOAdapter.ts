@@ -250,6 +250,18 @@ export class WebIOAdapter implements IOAdapter {
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
     // eslint-disable-next-line no-console
     console.log('[WebIO] readLine called, maxLength:', maxLength, 'timeout:', timeout);
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] readLine - current input value:', JSON.stringify(this.input.value));
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] readLine - existing lineResolve?', !!this.lineResolve);
+
+    // GUARD: If we already have a pending lineResolve, something is wrong
+    if (this.lineResolve) {
+      // eslint-disable-next-line no-console
+      console.error('[WebIO] ERROR: readLine called while already waiting for input!');
+      // eslint-disable-next-line no-console
+      console.trace('[WebIO] Stack trace:');
+    }
 
     // Check for playback mode - automatically provide next input
     if (this.isPlayingBack && this.playbackQueue.length > 0) {
