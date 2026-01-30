@@ -4,6 +4,8 @@ import path from 'path';
 export default defineConfig({
   root: 'src/web',
   publicDir: 'public',
+  // Use VITE_BASE env var for GitHub Pages, otherwise use root
+  base: process.env.VITE_BASE || '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

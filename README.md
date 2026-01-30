@@ -31,7 +31,7 @@
 
 ---
 
-**[📖 Documentation](#api-reference)** · **[🚀 Quick Start](#quick-start)** · **[🎮 Web Demo](#web-demo)** · **[📦 npm](https://www.npmjs.com/package/zmachine)**
+**[📖 Documentation](#api-reference)** · **[🚀 Quick Start](#quick-start)** · **[🎮 Live Demo](https://daniellockard.github.io/zmachine/)** · **[📦 npm](https://www.npmjs.com/package/zmachine)**
 
 </div>
 
@@ -162,9 +162,13 @@ await zm.run();
 
 <div align="center">
 
-> 🕹️ **Try it now!** Run the included web UI for playing games in your browser.
+### 🌐 [**Try it live!** → daniellockard.github.io/zmachine](https://daniellockard.github.io/zmachine/)
+
+> 🕹️ Play classic text adventures directly in your browser — no installation required!
 
 </div>
+
+Or run locally:
 
 ```bash
 npm run dev:web
