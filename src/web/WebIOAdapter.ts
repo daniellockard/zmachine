@@ -264,8 +264,17 @@ export class WebIOAdapter implements IOAdapter {
     }
 
     // Check for playback mode - automatically provide next input
+    // eslint-disable-next-line no-console
+    console.log(
+      '[WebIO] readLine - isPlayingBack:',
+      this.isPlayingBack,
+      'playbackQueue.length:',
+      this.playbackQueue.length
+    );
     if (this.isPlayingBack && this.playbackQueue.length > 0) {
       const text = this.playbackQueue.shift()!;
+      // eslint-disable-next-line no-console
+      console.log('[WebIO] PLAYBACK: auto-providing input:', text);
       this.print('>' + text + '\n');
       // Small delay to make playback visible
       await new Promise((r) => setTimeout(r, 100));
@@ -304,6 +313,8 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async readChar(timeout?: number): Promise<number> {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] readChar called, timeout:', timeout);
     this.input.focus();
 
     return new Promise((resolve) => {
