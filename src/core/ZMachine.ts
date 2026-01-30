@@ -189,18 +189,27 @@ export class ZMachine {
     return this._state;
   }
 
+  /** Counter for run() invocations */
+  private static runCounter = 0;
+
   /**
    * Run the Z-machine until it halts or needs input
    *
    * @returns The run state when execution pauses
    */
   async run(): Promise<RunState> {
+    const runId = ++ZMachine.runCounter;
+    // eslint-disable-next-line no-console
+    console.log(`[ZMachine] run() started, id=${runId}`);
+
     this._state = RunState.Running;
 
     while (this._state === RunState.Running) {
       await this.step();
     }
 
+    // eslint-disable-next-line no-console
+    console.log(`[ZMachine] run() ended, id=${runId}, state=${this._state}`);
     return this._state;
   }
 
