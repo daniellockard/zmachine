@@ -147,6 +147,9 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   print(text: string): void {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] print:', JSON.stringify(text));
+
     // Capture transcript if enabled
     if (this.transcriptEnabled) {
       this.transcript.push(text);
