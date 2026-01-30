@@ -132,8 +132,13 @@ export class WebIOAdapter implements IOAdapter {
         // Echo input to output
         this.print(text + '\n');
 
-        this.lineResolve({ text, terminator: 13 });
+        // eslint-disable-next-line no-console
+        console.log('[WebIO] Resolving lineResolve with:', { text, terminator: 13 });
+        const resolver = this.lineResolve;
         this.lineResolve = undefined;
+        resolver({ text, terminator: 13 });
+        // eslint-disable-next-line no-console
+        console.log('[WebIO] lineResolve completed');
       } else if (this.charResolve) {
         // Single character input
         const charCode = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
@@ -154,6 +159,9 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   print(text: string): void {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] print:', JSON.stringify(text));
+
     // Capture transcript if enabled
     if (this.transcriptEnabled) {
       this.transcript.push(text);
@@ -240,6 +248,9 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] readLine called, maxLength:', maxLength, 'timeout:', timeout);
+
     // Check for playback mode - automatically provide next input
     if (this.isPlayingBack && this.playbackQueue.length > 0) {
       const text = this.playbackQueue.shift()!;
