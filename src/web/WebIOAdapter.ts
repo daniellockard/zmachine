@@ -103,9 +103,21 @@ export class WebIOAdapter implements IOAdapter {
 
   private setupInputHandler(): void {
     this.input.addEventListener('keydown', (e) => {
+      // eslint-disable-next-line no-console
+      console.log(
+        '[WebIO] keydown:',
+        e.key,
+        'lineResolve:',
+        !!this.lineResolve,
+        'charResolve:',
+        !!this.charResolve
+      );
+
       if (e.key === 'Enter' && this.lineResolve) {
         const text = this.input.value;
         this.input.value = '';
+        // eslint-disable-next-line no-console
+        console.log('[WebIO] Processing input:', text);
 
         // Notify before processing (for map tracking)
         if (this.onBeforeInput) {
@@ -473,12 +485,16 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   quit(): void {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] QUIT called');
     this.print('\n[Game ended]\n');
     this.input.disabled = true;
     this.onQuit?.();
   }
 
   restart(): void {
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] RESTART called');
     this.output.innerHTML = '';
     this.onRestart?.();
   }
