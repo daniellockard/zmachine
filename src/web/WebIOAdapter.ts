@@ -232,9 +232,13 @@ export class WebIOAdapter implements IOAdapter {
   private pendingReadLine: Promise<ReadLineResult> | null = null;
 
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
-    // GUARD: If we already have a pending readLine, wait for it first
+    // GUARD: If we already have a pending readLine, this is a bug - should never happen
     if (this.pendingReadLine) {
-      await this.pendingReadLine;
+      // eslint-disable-next-line no-console
+      console.error('[WebIO] ERROR: readLine called while already pending!');
+      // eslint-disable-next-line no-console
+      console.trace('[WebIO] Stack trace:');
+      throw new Error('readLine called while already waiting for input');
     }
 
     // Create the actual readLine promise
