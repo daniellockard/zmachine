@@ -247,6 +247,9 @@ export class WebIOAdapter implements IOAdapter {
     this.output.scrollTop = this.output.scrollHeight;
   }
 
+  /** Pending readLine promise for serialization */
+  private pendingReadLine: Promise<ReadLineResult> | null = null;
+
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
     // eslint-disable-next-line no-console
     console.log('[WebIO] readLine called, maxLength:', maxLength, 'timeout:', timeout);
@@ -254,15 +257,30 @@ export class WebIOAdapter implements IOAdapter {
     console.log('[WebIO] readLine - current input value:', JSON.stringify(this.input.value));
     // eslint-disable-next-line no-console
     console.log('[WebIO] readLine - existing lineResolve?', !!this.lineResolve);
+    // eslint-disable-next-line no-console
+    console.log('[WebIO] readLine - pendingReadLine?', !!this.pendingReadLine);
 
-    // GUARD: If we already have a pending lineResolve, something is wrong
-    if (this.lineResolve) {
+    // GUARD: If we already have a pending readLine, wait for it first
+    if (this.pendingReadLine) {
       // eslint-disable-next-line no-console
-      console.error('[WebIO] ERROR: readLine called while already waiting for input!');
+      console.warn(
+        '[WebIO] WARNING: readLine called while already waiting! Waiting for previous...'
+      );
+      await this.pendingReadLine;
       // eslint-disable-next-line no-console
-      console.trace('[WebIO] Stack trace:');
+      console.log('[WebIO] Previous readLine completed, continuing with new one');
     }
 
+    // Create the actual readLine promise
+    this.pendingReadLine = this.doReadLine(maxLength, timeout);
+    try {
+      return await this.pendingReadLine;
+    } finally {
+      this.pendingReadLine = null;
+    }
+  }
+
+  private async doReadLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
     // Check for playback mode - automatically provide next input
     // eslint-disable-next-line no-console
     console.log(
