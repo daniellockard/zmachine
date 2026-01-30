@@ -189,9 +189,6 @@ export class ZMachine {
     return this._state;
   }
 
-  /** Counter for run() invocations */
-  private static runCounter = 0;
-
   /** Flag to prevent multiple parallel run() calls */
   private isRunning = false;
 
@@ -201,16 +198,8 @@ export class ZMachine {
    * @returns The run state when execution pauses
    */
   async run(): Promise<RunState> {
-    const runId = ++ZMachine.runCounter;
-    // eslint-disable-next-line no-console
-    console.log(`[ZMachine] run() started, id=${runId}, isRunning=${this.isRunning}`);
-
     // Prevent multiple parallel run() calls
     if (this.isRunning) {
-      // eslint-disable-next-line no-console
-      console.error(`[ZMachine] ERROR: run() called while already running! id=${runId}`);
-      // eslint-disable-next-line no-console
-      console.trace('[ZMachine] Stack trace:');
       throw new Error('ZMachine.run() called while already running');
     }
 
@@ -225,8 +214,6 @@ export class ZMachine {
       this.isRunning = false;
     }
 
-    // eslint-disable-next-line no-console
-    console.log(`[ZMachine] run() ended, id=${runId}, state=${this._state}`);
     return this._state;
   }
 

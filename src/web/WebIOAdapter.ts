@@ -231,37 +231,16 @@ export class WebIOAdapter implements IOAdapter {
   /** Pending readLine promise for serialization */
   private pendingReadLine: Promise<ReadLineResult> | null = null;
 
-  /** Counter for readLine calls to detect runaway loops */
-  private readLineCounter = 0;
-
   async readLine(maxLength: number, timeout?: number): Promise<ReadLineResult> {
-    this.readLineCounter++;
-    const callId = this.readLineCounter;
-
-    // Only log if this looks like a runaway loop (more than 3 calls in quick succession)
-    if (callId > 3) {
-      // eslint-disable-next-line no-console
-      console.error(`[WebIO] LOOP DETECTED: readLine #${callId}`);
-      // eslint-disable-next-line no-console
-      console.trace('[WebIO] Stack trace:');
-      // Break the loop by throwing
-      throw new Error(`readLine loop detected: call #${callId}`);
-    }
-
     // GUARD: If we already have a pending readLine, wait for it first
     if (this.pendingReadLine) {
-      // eslint-disable-next-line no-console
-      console.warn('[WebIO] readLine called while already waiting!');
       await this.pendingReadLine;
     }
 
     // Create the actual readLine promise
     this.pendingReadLine = this.doReadLine(maxLength, timeout);
     try {
-      const result = await this.pendingReadLine;
-      // Reset counter after successful user input
-      this.readLineCounter = 0;
-      return result;
+      return await this.pendingReadLine;
     } finally {
       this.pendingReadLine = null;
     }
@@ -519,8 +498,10 @@ export class WebIOAdapter implements IOAdapter {
   }
 
   restart(): void {
+    // Just clear the output - the Z-machine handles restarting internally
+    // via the restart opcode which resets memory and PC
+    // DO NOT call onRestart here - that's for external restart requests only
     this.output.innerHTML = '';
-    this.onRestart?.();
   }
 
   // Save/restore through browser file download/upload

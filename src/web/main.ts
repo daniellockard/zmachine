@@ -124,9 +124,6 @@ async function loadStory(data: ArrayBuffer): Promise<void> {
  * Start/restart game execution
  */
 async function startGame(zm: ZMachine): Promise<void> {
-  // eslint-disable-next-line no-console
-  console.log('[Main] startGame called');
-
   // Clear output
   outputEl.innerHTML = '';
 
@@ -138,11 +135,7 @@ async function startGame(zm: ZMachine): Promise<void> {
 
   // Run the machine - this will call onWaitingForInput when ready for input
   try {
-    // eslint-disable-next-line no-console
-    console.log('[Main] Starting zm.run()');
-    const result = await zm.run();
-    // eslint-disable-next-line no-console
-    console.log('[Main] zm.run() returned:', result);
+    await zm.run();
   } catch (error) {
     // Check if it's the expected "waiting for input" error
     if (error instanceof Error && error.message.includes('No line input available')) {
