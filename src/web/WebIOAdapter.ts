@@ -294,7 +294,15 @@ export class WebIOAdapter implements IOAdapter {
     this.input.maxLength = maxLength;
 
     return new Promise((resolve) => {
-      this.lineResolve = resolve;
+      // eslint-disable-next-line no-console
+      console.log('[WebIO] readLine - Promise created, setting lineResolve');
+      this.lineResolve = (result: ReadLineResult): void => {
+        // eslint-disable-next-line no-console
+        console.log('[WebIO] readLine - lineResolve CALLED with:', result);
+        // eslint-disable-next-line no-console
+        console.trace('[WebIO] lineResolve call stack:');
+        resolve(result);
+      };
 
       // Timeout support: timeout is in tenths of a second
       if (timeout && timeout > 0) {
